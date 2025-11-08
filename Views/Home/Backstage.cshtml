@@ -1,0 +1,861 @@
+﻿@{
+    ViewBag.Title = "Backstage";
+    Layout = null; // 若要套用 _Layout.cshtml，改為 Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>後台管理 | 早餐店</title>
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <style>
+        :root {
+            /* 亮亮早餐 — 日光蛋黃主題色系 */
+            --bg: #fff6d6; /* 背景米黃 */
+            --bg2: #ffeaa3; /* 次背景淡黃 */
+            --card: #fff9e6; /* 卡片奶油黃 */
+            --ink: #7a4a12; /* 文字深棕橙 */
+            --muted: #b68e5a; /* 次要文字 */
+            --accent: #f6b21a; /* 蛋黃黃 */
+            --accent-strong: #f28e1c; /* 橙 */
+            --ok: #2fbf71; /* 成功 */
+            --warn: #de5a14; /* 警示橙紅 */
+            --ring: rgba(242, 142, 28, .35);
+        }
+
+        html, body {
+            height: 100%;
+            background: radial-gradient(1200px 800px at 30% 20%, rgba(255,213,102,.55), transparent 60%), radial-gradient(900px 600px at 80% 10%, rgba(255,245,200,.9), transparent 55%), var(--bg);
+        }
+
+        body {
+            color: var(--ink)
+        }
+
+        .app {
+            min-height: 100%;
+            padding: 24px;
+        }
+
+        .glass {
+            background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,.65));
+            border: 1px solid rgba(242,142,28,.25);
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(242,142,28,.15);
+        }
+
+        .title {
+            color: var(--accent-strong)
+        }
+
+        .muted {
+            color: var(--muted)
+        }
+
+        .btn-accent {
+            background: var(--accent-strong);
+            color: #fff;
+            border: none
+        }
+
+            .btn-accent:hover {
+                filter: brightness(1.05)
+            }
+
+        .tag {
+            font-size: .75rem;
+            padding: .15rem .4rem;
+            border-radius: .35rem;
+        }
+
+            .tag.on {
+                background: rgba(47,191,113,.15);
+                color: #127a45;
+            }
+
+            .tag.off {
+                background: rgba(222,90,20,.12);
+                color: var(--warn);
+            }
+
+        .table thead th {
+            color: #9a6b2a
+        }
+
+        .table tbody td {
+            color: #5b3a10
+        }
+
+        .table {
+            --bs-table-bg: var(--card)
+        }
+
+        .pill {
+            background: #fff3c4;
+            border: 1px solid rgba(242,142,28,.3);
+            border-radius: 999px;
+            padding: .25rem .75rem;
+            color: #7a4a12
+        }
+
+        .nav-tabs .nav-link {
+            color: #a56519
+        }
+
+            .nav-tabs .nav-link.active {
+                background: #fff7d1;
+                color: #7a4a12;
+                border-color: rgba(242,142,28,.4)
+            }
+
+        .demo-banner {
+            border-left: 4px solid var(--accent-strong);
+            background: rgba(246,178,26,.18)
+        }
+
+        .form-switch .form-check-input {
+            cursor: pointer
+        }
+
+        .modal-content {
+            background: var(--card);
+            border: 1px solid rgba(242,142,28,.25);
+            color: #5b3a10
+        }
+
+        .form-control, .form-select {
+            background: #fffaf0;
+            border: 1px solid rgba(242,142,28,.35);
+            color: #5b3a10
+        }
+
+            .form-control:focus, .form-select:focus {
+                box-shadow: 0 0 0 .25rem var(--ring);
+                border-color: var(--accent-strong)
+            }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: .75rem
+        }
+
+        .brand-logo {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            box-shadow: 0 0 24px rgba(246,178,26,.55)
+        }
+    </style>
+</head>
+<body>
+    <div class="app container-xxl">
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <div class="brand">
+                <img src="/assets/logo-breakfast.png" alt="亮亮早餐" class="brand-logo" onerror="this.style.display='none'">
+                <div>
+                    <h1 class="title fw-bold mb-1">亮亮早餐 Backstage</h1>
+                    <div class="muted">餐點設定、套餐設定、桌號管理</div>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="pill">API Base: <code id="apiBaseText">(同網域)</code></span>
+                <button id="toggleDemo" class="btn btn-sm btn-outline-warning">切換 Demo</button>
+            </div>
+        </div>
+
+        <!-- 工具列 -->
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+            <button id="resetRemaining" class="btn btn-accent">重置今日限量數</button>
+            <span class="muted">（將「限量」品項的當日剩餘重設為限量數）</span>
+        </div>
+
+        <div id="demoBanner" class="demo-banner p-3 rounded-3 mb-4 d-none">
+            <div class="d-flex align-items-center gap-2"><strong>Demo 模式</strong><span class="muted">（無法連線 API 時使用假資料預覽 UI）</span></div>
+        </div>
+
+        <div class="glass p-3 p-md-4">
+            <ul class="nav nav-tabs" id="adminTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="items-tab" data-bs-toggle="tab" data-bs-target="#items" type="button" role="tab">餐點設定</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="combos-tab" data-bs-toggle="tab" data-bs-target="#combos" type="button" role="tab">套餐設定</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tables-tab" data-bs-toggle="tab" data-bs-target="#tables" type="button" role="tab">桌號管理</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="shops-tab" data-bs-toggle="tab" data-bs-target="#shops" type="button" role="tab">店家管理</button>
+                </li>
+
+            </ul>
+
+            <div class="tab-content pt-4">
+                <!-- 餐點設定 -->
+                <div class="tab-pane fade show active" id="items" role="tabpanel">
+                    <div class="d-flex flex-wrap align-items-center mb-3 searchbar">
+                        <input id="kwItems" class="form-control" placeholder="搜尋名稱..." style="max-width:240px" />
+                        <select id="activeItems" class="form-select" style="max-width:160px">
+                            <option value="">全部</option>
+                            <option value="true">上架</option>
+                            <option value="false">下架</option>
+                        </select>
+                        <button class="btn btn-outline-secondary" id="btnSearchItems">搜尋</button>
+                        <button class="btn btn-accent ms-auto" data-bs-toggle="modal" data-bs-target="#itemModal" id="btnNewItem">+ 新增餐點</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table align-middle table-bordered">
+                            <thead>
+                                <tr><th>#</th><th>名稱</th><th class="text-end">價格</th><th>成分</th><th>限量</th><th>上架</th><th>操作</th></tr>
+                            </thead>
+                            <tbody id="itemsBody"></tbody>
+                        </table>
+                    </div>
+                    <nav><ul class="pagination" id="itemsPager"></ul></nav>
+                </div>
+
+                <!-- 套餐設定 -->
+                <div class="tab-pane fade" id="combos" role="tabpanel">
+                    <div class="d-flex flex-wrap align-items-center mb-3 searchbar">
+                        <input id="kwCombos" class="form-control" placeholder="搜尋名稱..." style="max-width:240px" />
+                        <select id="activeCombos" class="form-select" style="max-width:160px">
+                            <option value="">全部</option>
+                            <option value="true">上架</option>
+                            <option value="false">下架</option>
+                        </select>
+                        <button class="btn btn-outline-secondary" id="btnSearchCombos">搜尋</button>
+                        <button class="btn btn-accent ms-auto" data-bs-toggle="modal" data-bs-target="#comboModal" id="btnNewCombo">+ 新增套餐</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table align-middle table-bordered">
+                            <thead>
+                                <tr><th>#</th><th>名稱</th><th class="text-end">價格</th><th>內容</th><th>限量</th><th>上架</th><th>操作</th></tr>
+                            </thead>
+                            <tbody id="combosBody"></tbody>
+                        </table>
+                    </div>
+                    <nav><ul class="pagination" id="combosPager"></ul></nav>
+                </div>
+
+                <!-- 桌號管理 -->
+                <div class="tab-pane fade" id="tables" role="tabpanel">
+                    <div class="d-flex flex-wrap align-items-center mb-3 searchbar">
+                        <input id="kwTables" class="form-control" placeholder="搜尋桌碼/區域..." style="max-width:240px" />
+                        <select id="activeTables" class="form-select" style="max-width:160px">
+                            <option value="">全部</option>
+                            <option value="true">啟用</option>
+                            <option value="false">停用</option>
+                        </select>
+                        <button class="btn btn-outline-secondary" id="btnSearchTables">搜尋</button>
+                        <button class="btn btn-accent ms-auto" data-bs-toggle="modal" data-bs-target="#tableModal" id="btnNewTable">+ 新增桌號</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table align-middle table-bordered">
+                            <thead>
+                                <tr><th>#</th><th>桌碼</th><th>區域</th><th>狀態</th><th>操作</th></tr>
+                            </thead>
+                            <tbody id="tablesBody"></tbody>
+                        </table>
+                    </div>
+                    <nav><ul class="pagination" id="tablesPager"></ul></nav>
+                </div>
+                <!-- 店家管理 -->
+                <div class="tab-pane fade" id="shops" role="tabpanel">
+                    <div class="d-flex flex-wrap align-items-center mb-3 searchbar">
+                        <input id="kwShops" class="form-control" placeholder="搜尋店名 / 電話 / 地址..." style="max-width:300px" />
+                        <select id="activeShops" class="form-select" style="max-width:160px">
+                            <option value="">全部</option>
+                            <option value="true">啟用</option>
+                            <option value="false">停用</option>
+                        </select>
+                        <button class="btn btn-outline-secondary" id="btnSearchShops">搜尋</button>
+                        <button class="btn btn-accent ms-auto" data-bs-toggle="modal" data-bs-target="#shopModal" id="btnNewShop">+ 新增店家</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table align-middle table-bordered">
+                            <thead>
+                                <tr><th>#</th><th>店名</th><th>電話</th><th>地址</th><th>狀態</th><th>操作</th></tr>
+                            </thead>
+                            <tbody id="shopsBody"></tbody>
+                        </table>
+                    </div>
+                    <nav><ul class="pagination" id="shopsPager"></ul></nav>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- 餐點 Modal -->
+    <div class="modal fade" id="itemModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title">餐點</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+                <div class="modal-body">
+                    <form id="itemForm" class="row g-3">
+                        <input type="hidden" id="itemId" />
+                        <div class="col-md-6">
+                            <label class="form-label">名稱</label>
+                            <input id="itemName" class="form-control" required />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">價格</label>
+                            <input id="itemPrice" type="number" min="0" step="1" class="form-control" required />
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="itemActive" checked>
+                                <label class="form-check-label" for="itemActive">上架</label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">成分（以逗號分隔）</label>
+                            <input id="itemIngredients" class="form-control" placeholder="egg, ham, cheese" />
+                        </div>
+                        <!-- 目前 DB 尚未有「限量」欄位，先保留 UI，不寫入 -->
+                        <div class="col-md-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="itemLimited">
+                                <label class="form-check-label" for="itemLimited">限量</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">限量數</label>
+                            <input id="itemLimitedQty" type="number" min="0" step="1" class="form-control" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">當日剩餘</label>
+                            <input id="itemRemainingQty" type="number" min="0" step="1" class="form-control" />
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                    <button class="btn btn-accent" id="saveItem">儲存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 套餐 Modal -->
+    <div class="modal fade" id="comboModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title">套餐</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+                <div class="modal-body">
+                    <form id="comboForm" class="row g-3">
+                        <input type="hidden" id="comboId" />
+                        <div class="col-md-6">
+                            <label class="form-label">名稱</label>
+                            <input id="comboName" class="form-control" required />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">價格</label>
+                            <input id="comboPrice" type="number" min="0" step="1" class="form-control" required />
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="comboActive" checked>
+                                <label class="form-check-label" for="comboActive">上架</label>
+                            </div>
+                        </div>
+                        <!-- 明細（目前僅前端顯示，尚未存 DB） -->
+                        <div class="col-12">
+                            <label class="form-label">套餐內容</label>
+                            <div class="d-flex gap-2">
+                                <select id="comboItemSelect" class="form-select" style="max-width:380px"></select>
+                                <input id="comboItemQty" type="number" min="1" step="1" value="1" class="form-control" style="max-width:120px" />
+                                <button class="btn btn-outline-secondary" id="addComboLine" type="button">加入</button>
+                            </div>
+                            <div class="mt-3">
+                                <table class="table align-middle table-bordered">
+                                    <thead><tr><th>餐點</th><th style="width:120px">數量</th><th style="width:100px">操作</th></tr></thead>
+                                    <tbody id="comboLines"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                    <button class="btn btn-accent" id="saveCombo">儲存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 桌號 Modal（仍 Demo） -->
+    <div class="modal fade" id="tableModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-md modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title">桌號</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+                <div class="modal-body">
+                    <form id="tableForm" class="row g-3">
+                        <input type="hidden" id="tableId" />
+                        <div class="col-md-6">
+                            <label class="form-label">桌碼</label>
+                            <input id="tableCode" class="form-control" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">區域</label>
+                            <input id="tableZone" class="form-control" />
+                        </div>
+                        <div class="col-md-12 d-flex align-items-center">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="tableActive" checked>
+                                <label class="form-check-label" for="tableActive">啟用</label>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                    <button class="btn btn-accent" id="saveTable">儲存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toaster -->
+    <div class="position-fixed top-0 end-0 p-3" style="z-index:1080">
+        <div id="appToast" class="toast align-items-center text-bg-light border-0" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body" id="toastBody">完成</div>
+                <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        (() => {
+            // TODO: 換成你資料庫 Shop 的 GUID
+            const SHOP_ID = 'PUT-YOUR-SHOP-GUID-HERE';
+
+            const apiBase = ''; // 與後端同站點
+            const state = { demo: false, itemsPage: 1, combosPage: 1, tablesPage: 1, pageSize: 10, items: [], combos: [], tables: [], allItemsForCombo: [] };
+            const $ = (sel) => document.querySelector(sel);
+            const $all = (sel) => Array.from(document.querySelectorAll(sel));
+            const el = {
+                apiBaseText: $('#apiBaseText'), demoBanner: $('#demoBanner'),
+                // items
+                kwItems: $('#kwItems'), activeItems: $('#activeItems'), btnSearchItems: $('#btnSearchItems'), itemsBody: $('#itemsBody'), itemsPager: $('#itemsPager'),
+                // combos
+                kwCombos: $('#kwCombos'), activeCombos: $('#activeCombos'), btnSearchCombos: $('#btnSearchCombos'), combosBody: $('#combosBody'), combosPager: $('#combosPager'),
+                // tables（仍 demo）
+                kwTables: $('#kwTables'), activeTables: $('#activeTables'), btnSearchTables: $('#btnSearchTables'), tablesBody: $('#tablesBody'), tablesPager: $('#tablesPager'),
+                // modals & forms
+                itemModal: $('#itemModal'), itemForm: $('#itemForm'), itemId: $('#itemId'), itemName: $('#itemName'), itemPrice: $('#itemPrice'), itemIngredients: $('#itemIngredients'), itemActive: $('#itemActive'), itemLimited: $('#itemLimited'), itemLimitedQty: $('#itemLimitedQty'), itemRemainingQty: $('#itemRemainingQty'), saveItem: $('#saveItem'),
+                comboModal: $('#comboModal'), comboForm: $('#comboForm'), comboId: $('#comboId'), comboName: $('#comboName'), comboPrice: $('#comboPrice'), comboActive: $('#comboActive'), comboLimited: $('#comboLimited'), comboLimitedQty: $('#comboLimitedQty'), comboRemainingQty: $('#comboRemainingQty'), comboItemSelect: $('#comboItemSelect'), comboItemQty: $('#comboItemQty'), addComboLine: $('#addComboLine'),
+                comboLines: document.getElementById('comboLines'), // 用 getElementById，避免 querySelector 時機問題
+                saveCombo: $('#saveCombo'),
+                tableModal: $('#tableModal'), tableForm: $('#tableForm'), tableId: $('#tableId'), tableCode: $('#tableCode'), tableZone: $('#tableZone'), tableActive: $('#tableActive'), saveTable: $('#saveTable'),
+                toggleDemo: $('#toggleDemo'),
+            };
+
+            function toast(msg) { console.log('[toast]', msg); }
+            function showDemoBanner(show) { el.demoBanner?.classList.toggle('d-none', !show); }
+            function tag(v, onText = '是', offText = '否') { return `<span class="tag ${v ? 'on' : 'off'}">${v ? onText : offText}</span>` }
+            function pager(container, total, page, pageSize, onClick) {
+                const pages = Math.max(1, Math.ceil(total / pageSize));
+                const html = [];
+                const mk = (p, label, active = false, disabled = false) => `<li class="page-item ${active ? 'active' : ''} ${disabled ? 'disabled' : ''}"><a href="#" class="page-link" data-page="${p}">${label}</a></li>`;
+                html.push(mk(Math.max(1, page - 1), '«', false, page === 1));
+                for (let i = 1; i <= pages; i++) {
+                    if (i === 1 || i === pages || Math.abs(i - page) <= 2) { html.push(mk(i, i, i === page)); }
+                    else if (!html.at(-1)?.includes('page-item disabled')) { html.push('<li class="page-item disabled"><span class="page-link">…</span></li>'); }
+                }
+                html.push(mk(Math.min(pages, page + 1), '»', false, page === pages));
+                container.innerHTML = html.join('');
+                container.querySelectorAll('.page-link').forEach(a => a.addEventListener('click', e => { e.preventDefault(); const p = parseInt(a.dataset.page); onClick(p); }));
+            }
+
+            // ---- 通用 Demo API（保留） ----
+            async function api(path, options) {
+                try {
+                    const res = await fetch(apiBase + path, Object.assign({ headers: { 'Content-Type': 'application/json' } }, options || {}));
+                    if (!res.ok) throw new Error(await res.text());
+                    state.demo = false; showDemoBanner(false); return await res.json();
+                } catch (err) {
+                    state.demo = true; showDemoBanner(true);
+                    return demoApi(path, options);
+                }
+            }
+            function demoApi(path, options) {
+                if (path.startsWith('/api/menu-items')) {
+                    if (!state.items.length) {
+                        state.items = [
+                            { id: 1, name: '日光蛋吐司', price: 45, ingredients: ['egg', 'toast'], isLimited: false, limitedQty: null, remainingQty: null, isActive: true },
+                            { id: 2, name: '火腿蛋吐司', price: 55, ingredients: ['ham', 'egg', 'toast'], isLimited: false, limitedQty: null, remainingQty: null, isActive: true },
+                            { id: 3, name: '鮮奶茶', price: 35, ingredients: ['milk', 'tea'], isLimited: true, limitedQty: 50, remainingQty: 23, isActive: true },
+                        ];
+                    }
+                    return paginateLocal(state.items, getQuery(path));
+                }
+                if (path.startsWith('/api/combos')) {
+                    if (!state.combos.length) {
+                        state.combos = [
+                            { id: 1, name: '活力早餐A', price: 99, isLimited: false, limitedQty: null, remainingQty: null, isActive: true, items: [{ menuItemId: 1, quantity: 1, itemName: '日光蛋吐司' }, { menuItemId: 3, quantity: 1, itemName: '鮮奶茶' }] },
+                        ];
+                    }
+                    return paginateLocal(state.combos, getQuery(path));
+                }
+                if (path.startsWith('/api/tables')) {
+                    if (!state.tables.length) {
+                        state.tables = [
+                            { id: 1, code: 'A1', zone: '窗邊', isActive: true },
+                            { id: 2, code: 'A2', zone: '窗邊', isActive: true },
+                            { id: 3, code: 'B1', zone: '吧台', isActive: false },
+                        ];
+                    }
+                    return paginateLocal(state.tables, getQuery(path));
+                }
+                return { items: [], total: 0, page: 1, pageSize: state.pageSize };
+            }
+            function getQuery(path) {
+                const q = {}; const i = path.indexOf('?'); if (i > 0) { new URLSearchParams(path.substring(i + 1)).forEach((v, k) => q[k] = v); }
+                return q;
+            }
+            function paginateLocal(arr, q) {
+                let list = [...arr];
+                if (q.keyword) { list = list.filter(x => (x.name || x.code || '').includes(q.keyword)); }
+                if (q.active !== undefined && q.active !== '') {
+                    const flag = q.active === 'true'; list = list.filter(x => (x.isActive === flag));
+                }
+                const page = parseInt(q.page || '1'); const pageSize = parseInt(q.pageSize || state.pageSize);
+                const total = list.length; const start = (page - 1) * pageSize; const items = list.slice(start, start + pageSize);
+                return { items, total, page, pageSize };
+            }
+
+            // ========== Meals ==========
+            async function loadItems(page = 1) {
+                try {
+                    const activeVal = el.activeItems.value; // '', 'true', 'false'
+                    const res = await fetch(`/Home/GetMeals?onlyActive=${encodeURIComponent(activeVal)}`, { method: 'GET', headers: { 'Accept': 'application/json' } });
+                    if (!res.ok) throw new Error(await res.text());
+                    const rows = await res.json(); // List<Dictionary<string,object>>
+                    const mapped = rows.map(r => ({
+                        id: r.Id,
+                        name: r.Name || '',
+                        price: Number(r.Money || 0),
+                        ingredients: (r.Element || '').split(',').map(s => (s || '').trim()).filter(Boolean),
+                        isActive: !!r.IsActive,
+                        isLimited: false, limitedQty: null, remainingQty: null
+                    }));
+
+                    const kw = el.kwItems.value.trim();
+                    const filtered = kw ? mapped.filter(x => (x.name || '').includes(kw)) : mapped;
+
+                    const pageSize = state.pageSize;
+                    const total = filtered.length;
+                    const pages = Math.max(1, Math.ceil(total / pageSize));
+                    const current = Math.min(Math.max(1, page), pages);
+                    const start = (current - 1) * pageSize;
+                    const items = filtered.slice(start, start + pageSize);
+
+                    renderItems({ items, total, page: current, pageSize });
+                    state.itemsPage = current;
+
+                    if (!state.allItemsForCombo.length) {
+                        state.allItemsForCombo = mapped;
+                        renderComboItemSelect();
+                    }
+                } catch (err) {
+                    state.demo = true; showDemoBanner(true);
+                    const data = await api(`/api/menu-items?page=${page}&pageSize=${state.pageSize}`);
+                    renderItems(data); state.itemsPage = data.page;
+                }
+            }
+            function renderItems({ items, total, page, pageSize }) {
+                const body = el.itemsBody;
+                body.innerHTML = items.map(m => `
+          <tr>
+            <td>${m.id}</td>
+            <td>${m.name}</td>
+            <td class="text-end">$${m.price}</td>
+            <td>${(m.ingredients || []).join(', ')}</td>
+            <td>${m.isLimited ? (m.remainingQty ?? 0) + ' / ' + (m.limitedQty ?? '-') : tag(false, '限量', '不限')}</td>
+            <td>${tag(!!m.isActive, '上架', '下架')}</td>
+            <td>
+              <div class="btn-group btn-group-sm">
+                <button class="btn btn-outline-secondary" data-act="edit-item" data-id="${m.id}">編輯</button>
+                <button class="btn btn-outline-danger" data-act="del-item" data-id="${m.id}">刪除</button>
+              </div>
+            </td>
+          </tr>`).join('');
+                pager(el.itemsPager, total, page, pageSize, p => loadItems(p));
+                body.querySelectorAll('button[data-act]').forEach(btn => btn.addEventListener('click', onItemAction));
+            }
+            async function onItemAction(e) {
+                const id = e.currentTarget.dataset.id;
+                const act = e.currentTarget.dataset.act;
+                if (act === 'edit-item') {
+                    const m = (state.allItemsForCombo.find(x => String(x.id) === String(id)));
+                    openItemModal(m);
+                } else if (act === 'del-item') {
+                    if (!confirm('確定刪除？')) return;
+                    await removeItem(id); loadItems(state.itemsPage);
+                }
+            }
+            function openItemModal(m) {
+                el.itemForm.reset(); el.itemId.value = m?.id || ''; el.itemName.value = m?.name || ''; el.itemPrice.value = m?.price || '';
+                el.itemIngredients.value = (m?.ingredients || []).join(', ');
+                el.itemActive.checked = (m?.isActive ?? true);
+                el.itemLimited.checked = false;
+                el.itemLimitedQty.value = ''; el.itemRemainingQty.value = '';
+                new bootstrap.Modal(el.itemModal).show();
+            }
+            el.btnNewItem?.addEventListener('click', () => openItemModal(null));
+            el.saveItem?.addEventListener('click', async () => {
+                const payload = {
+                    name: el.itemName.value.trim(),
+                    price: parseFloat(el.itemPrice.value || '0'),
+                    ingredients: el.itemIngredients.value.split(',').map(s => s.trim()).filter(Boolean),
+                    isActive: el.itemActive.checked
+                };
+                const id = el.itemId.value || '';
+                await upsertItem(id ? 'PUT' : 'POST', id || null, payload);
+                bootstrap.Modal.getInstance(el.itemModal)?.hide(); loadItems(state.itemsPage); state.allItemsForCombo = [];
+            });
+            async function upsertItem(method, id, payload) {
+                try {
+                    const form = new URLSearchParams();
+                    form.append('actionType', id ? 'Update' : 'Create');
+                    form.append('model.Id', id ? id : '');
+                    form.append('model.ShopId', SHOP_ID);
+                    form.append('model.Name', payload.name || '');
+                    form.append('model.Money', (payload.price || 0).toString());
+                    form.append('model.IsActive', payload.isActive ? 'true' : 'false');
+                    form.append('model.Element', (payload.ingredients || []).join(','));
+                    const res = await fetch('/Home/UpdateMeals', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }, body: form.toString() });
+                    if (!res.ok) throw new Error(await res.text());
+                } catch (err) {
+                    // demo fallback
+                    if (state.demo) {
+                        if (method === 'POST') {
+                            const maxId = Math.max(0, ...state.items.map(x => x.id || 0));
+                            state.items.push({ id: maxId + 1, ...payload });
+                        } else {
+                            Object.assign(state.items.find(x => String(x.id) === String(id)), { id, ...payload });
+                        }
+                        return;
+                    }
+                    toast('儲存餐點失敗：' + (err.message || err));
+                }
+            }
+            async function removeItem(id) {
+                try {
+                    const form = new URLSearchParams();
+                    form.append('actionType', 'Delete');
+                    form.append('model.Id', id);
+                    const res = await fetch('/Home/UpdateMeals', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }, body: form.toString() });
+                    if (!res.ok) throw new Error(await res.text());
+                } catch (err) {
+                    if (state.demo) { state.items = state.items.filter(x => String(x.id) !== String(id)); return; }
+                    toast('刪除餐點失敗：' + (err.message || err));
+                }
+            }
+
+            // ========== Combo ==========
+            function renderComboItemSelect() {
+                el.comboItemSelect.innerHTML = '<option value="">選擇餐點…</option>' + state.allItemsForCombo.map(m => `<option value="${m.id}">${m.name} ($${m.price})</option>`).join('');
+            }
+            async function loadCombos(page = 1) {
+                try {
+                    const activeVal = el.activeCombos.value;
+                    const res = await fetch(`/Home/GetCombo?onlyActive=${encodeURIComponent(activeVal)}`, { method: 'GET', headers: { 'Accept': 'application/json' } });
+                    if (!res.ok) throw new Error(await res.text());
+                    const rows = await res.json();
+                    const mapped = rows.map(r => ({
+                        id: r.Id, name: r.ComboMeal || '', price: Number(r.Money || 0),
+                        isActive: !!r.IsActive, isLimited: false, limitedQty: null, remainingQty: null, items: []
+                    }));
+                    const kw = el.kwCombos.value.trim();
+                    const filtered = kw ? mapped.filter(x => (x.name || '').includes(kw)) : mapped;
+
+                    const pageSize = state.pageSize;
+                    const total = filtered.length;
+                    const pages = Math.max(1, Math.ceil(total / pageSize));
+                    const current = Math.min(Math.max(1, page), pages);
+                    const start = (current - 1) * pageSize;
+                    const items = filtered.slice(start, start + pageSize);
+
+                    renderCombos({ items, total, page: current, pageSize });
+                    state.combosPage = current;
+                } catch (err) {
+                    state.demo = true; showDemoBanner(true);
+                    const data = await api(`/api/combos?page=${page}&pageSize=${state.pageSize}`);
+                    renderCombos(data); state.combosPage = data.page;
+                }
+            }
+            function renderCombos({ items, total, page, pageSize }) {
+                el.combosBody.innerHTML = items.map(c => `
+          <tr>
+            <td>${c.id}</td>
+            <td>${c.name}</td>
+            <td class="text-end">$${c.price}</td>
+            <td>${(c.items || []).map(i => `${i.itemName || ('項目#' + i.menuItemId)} ×${i.quantity}`).join('、')}</td>
+            <td>${c.isLimited ? (c.remainingQty ?? 0) + ' / ' + (c.limitedQty ?? '-') : tag(false, '限量', '不限')}</td>
+            <td>${tag(!!c.isActive, '上架', '下架')}</td>
+            <td>
+              <div class="btn-group btn-group-sm">
+                <button class="btn btn-outline-secondary" data-act="edit-combo" data-id="${c.id}">編輯</button>
+                <button class="btn btn-outline-danger" data-act="del-combo" data-id="${c.id}">刪除</button>
+              </div>
+            </td>
+          </tr>`).join('');
+                pager(el.combosPager, total, page, pageSize, p => loadCombos(p));
+                el.combosBody.querySelectorAll('button[data-act]').forEach(btn => btn.addEventListener('click', onComboAction));
+            }
+            async function onComboAction(e) {
+                const id = e.currentTarget.dataset.id;
+                const act = e.currentTarget.dataset.act;
+                if (act === 'edit-combo') {
+                    const c = null; // DB 目前沒有明細，直接開空白
+                    openComboModal(c); el.comboId.value = id;
+                } else if (act === 'del-combo') {
+                    if (!confirm('確定刪除？')) return;
+                    await removeCombo(id); loadCombos(state.combosPage);
+                }
+            }
+            function openComboModal(c) {
+                el.comboForm.reset();
+                el.comboId.value = c?.id || '';
+                el.comboName.value = c?.name || '';
+                el.comboPrice.value = c?.price || '';
+                el.comboActive.checked = (c?.isActive ?? true);
+                el.comboLimited.checked = false; el.comboLimitedQty.value = ''; el.comboRemainingQty.value = '';
+
+                if (el.comboLines) {
+                    el.comboLines.innerHTML = (c?.items || []).map(i =>
+                        `<tr data-menu-id="${i.menuItemId}">
+               <td>${i.itemName || ('項目#' + i.menuItemId)}</td>
+               <td style="width:120px"><input class="form-control form-control-sm" type="number" min="1" step="1" value="${i.quantity || 1}" /></td>
+               <td style="width:100px"><button class="btn btn-sm btn-outline-danger" data-act="rm-line">移除</button></td>
+             </tr>`
+                    ).join('');
+                    bindComboLineEvents(); // 每次打開都重綁
+                }
+
+                new bootstrap.Modal(el.comboModal).show();
+            }
+            function bindComboLineEvents() {
+                if (!el.comboLines) return;
+                el.comboLines.querySelectorAll('[data-act=rm-line]').forEach(btn => {
+                    btn.onclick = (e) => { e.preventDefault(); btn.closest('tr')?.remove(); };
+                });
+            }
+            el.addComboLine?.addEventListener('click', () => {
+                if (!el.comboLines) return;
+                const id = parseInt(el.comboItemSelect.value || '0');
+                const qty = Math.max(1, parseInt(el.comboItemQty.value || '1'));
+                if (!id) return;
+                const found = state.allItemsForCombo.find(m => String(m.id) === String(id));
+                if (!found) return;
+                const tr = document.createElement('tr');
+                tr.dataset.menuId = id;
+                tr.innerHTML = `<td>${found.name}</td>
+                        <td style="width:120px"><input class="form-control form-control-sm" type="number" min="1" step="1" value="${qty}" /></td>
+                        <td style="width:100px"><button class="btn btn-sm btn-outline-danger" data-act="rm-line">移除</button></td>`;
+                el.comboLines.appendChild(tr);
+                bindComboLineEvents();
+            });
+            el.saveCombo?.addEventListener('click', async () => {
+                const payload = {
+                    name: el.comboName.value.trim(),
+                    price: parseFloat(el.comboPrice.value || '0'),
+                    isActive: el.comboActive.checked,
+                    items: $all('#comboLines tr').map(tr => ({ menuItemId: parseInt(tr.dataset.menuId), quantity: Math.max(1, parseInt(tr.querySelector('input').value || '1')) }))
+                };
+                const id = el.comboId.value || '';
+                await upsertCombo(id ? 'PUT' : 'POST', id || null, payload);
+                bootstrap.Modal.getInstance(el.comboModal)?.hide(); loadCombos(state.combosPage);
+            });
+            async function upsertCombo(method, id, payload) {
+                try {
+                    const form = new URLSearchParams();
+                    form.append('actionType', id ? 'Update' : 'Create');
+                    form.append('model.Id', id ? id : '');
+                    form.append('model.ShopId', SHOP_ID);
+                    form.append('model.ComboMeal', payload.name || '');
+                    form.append('model.Money', (payload.price || 0).toString());
+                    form.append('model.IsActive', payload.isActive ? 'true' : 'false');
+                    const res = await fetch('/Home/UpdateCombo', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }, body: form.toString() });
+                    if (!res.ok) throw new Error(await res.text());
+                } catch (err) {
+                    if (state.demo) {
+                        if (method === 'POST') {
+                            const maxId = Math.max(0, ...state.combos.map(x => x.id || 0));
+                            state.combos.push({ id: maxId + 1, ...payload });
+                        } else {
+                            Object.assign(state.combos.find(x => String(x.id) === String(id)), { id, ...payload });
+                        }
+                        return;
+                    }
+                    toast('儲存套餐失敗：' + (err.message || err));
+                }
+            }
+            async function removeCombo(id) {
+                try {
+                    const form = new URLSearchParams();
+                    form.append('actionType', 'Delete');
+                    form.append('model.Id', id);
+                    const res = await fetch('/Home/UpdateCombo', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }, body: form.toString() });
+                    if (!res.ok) throw new Error(await res.text());
+                } catch (err) {
+                    if (state.demo) { state.combos = state.combos.filter(x => String(x.id) !== String(id)); return; }
+                    toast('刪除套餐失敗：' + (err.message || err));
+                }
+            }
+
+            // ========== Tables（仍 Demo） ==========
+            async function loadTables(page = 1) {
+                const data = await api(`/api/tables?page=${page}&pageSize=${state.pageSize}`);
+                renderTables(data); state.tablesPage = data.page;
+            }
+            function renderTables({ items, total, page, pageSize }) {
+                el.tablesBody.innerHTML = items.map(t => `
+          <tr>
+            <td>${t.id}</td>
+            <td>${t.code}</td>
+            <td>${t.zone || ''}</td>
+            <td>${tag(!!t.isActive, '啟用', '停用')}</td>
+            <td>
+              <div class="btn-group btn-group-sm">
+                <button class="btn btn-outline-secondary" data-act="edit-table" data-id="${t.id}">編輯</button>
+                <button class="btn btn-outline-danger" data-act="del-table" data-id="${t.id}">刪除</button>
+              </div>
+            </td>
+          </tr>`).join('');
+                pager(el.tablesPager, total, page, pageSize, p => loadTables(p));
+            }
+
+            // 事件與初始化
+            el.btnSearchItems?.addEventListener('click', () => loadItems(1));
+            el.btnSearchCombos?.addEventListener('click', () => loadCombos(1));
+            el.btnSearchTables?.addEventListener('click', () => loadTables(1));
+            el.toggleDemo?.addEventListener('click', () => { state.demo = !state.demo; showDemoBanner(state.demo); if (state.demo) { toast('切至 Demo 模式'); } loadItems(); loadCombos(); loadTables(); });
+
+            document.getElementById('apiBaseText').textContent = apiBase || '(同網域)';
+
+            // 重置今日限量數（目前後端未實作；Demo 顯示）
+            document.getElementById('resetRemaining').addEventListener('click', async () => {
+                try {
+                    if (!confirm('確定要重置今日限量數？')) return;
+                    if (state.demo) { toast('Demo：已重置（模擬）'); return; }
+                    const res = await fetch(apiBase + '/api/admin/reset-remaining', { method: 'POST' });
+                    if (!res.ok) throw new Error(await res.text());
+                    toast('重置完成');
+                    loadItems(state.itemsPage); loadCombos(state.combosPage);
+                } catch (err) { toast('重置失敗：' + (err.message || err)); }
+            });
+
+            // 初始載入
+            loadItems(); loadCombos(); loadTables();
+        })();
+    </script>
+</body>
+</html>
