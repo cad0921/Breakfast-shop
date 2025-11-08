@@ -846,7 +846,15 @@
                 if (el.comboActive) {
                     el.comboActive.checked = (c?.isActive ?? true);
                 }
-                el.comboLimited.checked = false; el.comboLimitedQty.value = ''; el.comboRemainingQty.value = '';
+                if (el.comboLimited) {
+                    el.comboLimited.checked = false;
+                }
+                if (el.comboLimitedQty) {
+                    el.comboLimitedQty.value = '';
+                }
+                if (el.comboRemainingQty) {
+                    el.comboRemainingQty.value = '';
+                }
 
                 if (el.comboLines) {
                     el.comboLines.innerHTML = (c?.items || []).map(i =>
