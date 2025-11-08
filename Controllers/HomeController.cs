@@ -16,11 +16,12 @@ namespace breakfastshop.Controllers
         [HttpGet]
         public JsonResult GetMeals(Guid? shopId, bool? onlyActive)
         {
-            var sql = @"SELECT Id, ShopId, Name, Money, IsActive, Element, CreateDate, UpdateDate
-                        FROM dbo.Meals
-                        WHERE (@ShopId IS NULL OR ShopId=@ShopId)
-                          AND (@OnlyAct IS NULL OR IsActive=@OnlyAct)
-                        ORDER BY Name ASC";
+            var sql = @"SELECT m.Id, m.ShopId, s.Name AS ShopName, m.Name, m.Money, m.IsActive, m.Element, m.CreateDate, m.UpdateDate
+                        FROM dbo.Meals AS m
+                        LEFT JOIN dbo.Shop AS s ON m.ShopId = s.Id
+                        WHERE (@ShopId IS NULL OR m.ShopId=@ShopId)
+                          AND (@OnlyAct IS NULL OR m.IsActive=@OnlyAct)
+                        ORDER BY m.Name ASC";
             var dt = _db.Query(sql, new Dictionary<string, object>
             {
                 ["ShopId"] = (object)shopId ?? DBNull.Value,
@@ -86,11 +87,12 @@ namespace breakfastshop.Controllers
         [HttpGet]
         public JsonResult GetCombo(Guid? shopId, bool? onlyActive)
         {
-            var sql = @"SELECT Id, ShopId, ComboMeal, Money, IsActive, CreateDate, UpdateDate
-                        FROM dbo.Combo
-                        WHERE (@ShopId IS NULL OR ShopId=@ShopId)
-                          AND (@OnlyAct IS NULL OR IsActive=@OnlyAct)
-                        ORDER BY CreateDate DESC";
+            var sql = @"SELECT c.Id, c.ShopId, s.Name AS ShopName, c.ComboMeal, c.Money, c.IsActive, c.CreateDate, c.UpdateDate
+                        FROM dbo.Combo AS c
+                        LEFT JOIN dbo.Shop AS s ON c.ShopId = s.Id
+                        WHERE (@ShopId IS NULL OR c.ShopId=@ShopId)
+                          AND (@OnlyAct IS NULL OR c.IsActive=@OnlyAct)
+                        ORDER BY c.CreateDate DESC";
             var dt = _db.Query(sql, new Dictionary<string, object>
             {
                 ["ShopId"] = (object)shopId ?? DBNull.Value,
