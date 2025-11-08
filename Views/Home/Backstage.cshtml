@@ -1,4 +1,4 @@
-﻿@{
+﻿﻿@{
     ViewBag.Title = "Backstage";
     Layout = null; // 若要套用 _Layout.cshtml，改為 Layout = "~/Views/Shared/_Layout.cshtml";
 }
@@ -636,21 +636,21 @@
             function renderItems({ items, total, page, pageSize }) {
                 const body = el.itemsBody;
                 body.innerHTML = items.map(m => `
-          <tr>
-            <td>${m.id}</td>
-            <td>${m.name}</td>
-            <td>${m.shopName || '-'}</td>
-            <td class="text-end">$${m.price}</td>
-            <td>${(m.ingredients || []).join(', ')}</td>
-            <td>${m.isLimited ? (m.remainingQty ?? 0) + ' / ' + (m.limitedQty ?? '-') : tag(false, '限量', '不限')}</td>
-            <td>${tag(!!m.isActive, '上架', '下架')}</td>
-            <td>
-              <div class="btn-group btn-group-sm">
-                <button class="btn btn-outline-secondary" data-act="edit-item" data-id="${m.id}">編輯</button>
-                <button class="btn btn-outline-danger" data-act="del-item" data-id="${m.id}">刪除</button>
-              </div>
-            </td>
-          </tr>`).join('');
+              <tr>
+                <td>${m.id}</td>
+                <td>${m.name}</td>
+                <td>${m.shopName || '-'}</td>
+                <td class="text-end">$${m.price}</td>
+                <td>${(m.ingredients || []).join(', ')}</td>
+                <td>${m.isLimited ? (m.remainingQty ?? 0) + ' / ' + (m.limitedQty ?? '-') : tag(false, '限量', '不限')}</td>
+                <td>${tag(!!m.isActive, '上架', '下架')}</td>
+                <td>
+                  <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary" data-act="edit-item" data-id="${m.id}">編輯</button>
+                    <button class="btn btn-outline-danger" data-act="del-item" data-id="${m.id}">刪除</button>
+                  </div>
+                </td>
+              </tr>`).join('');
                 pager(el.itemsPager, total, page, pageSize, p => loadItems(p));
                 body.querySelectorAll('button[data-act]').forEach(btn => btn.addEventListener('click', onItemAction));
             }
@@ -809,21 +809,21 @@
             }
             function renderCombos({ items, total, page, pageSize }) {
                 el.combosBody.innerHTML = items.map(c => `
-          <tr>
-            <td>${c.id}</td>
-            <td>${c.name}</td>
-            <td>${c.shopName || '-'}</td>
-            <td class="text-end">$${c.price}</td>
-            <td>${(c.items || []).map(i => `${i.itemName || ('項目#' + i.menuItemId)} ×${i.quantity}`).join('、')}</td>
-            <td>${c.isLimited ? (c.remainingQty ?? 0) + ' / ' + (c.limitedQty ?? '-') : tag(false, '限量', '不限')}</td>
-            <td>${tag(!!c.isActive, '上架', '下架')}</td>
-            <td>
-              <div class="btn-group btn-group-sm">
-                <button class="btn btn-outline-secondary" data-act="edit-combo" data-id="${c.id}">編輯</button>
-                <button class="btn btn-outline-danger" data-act="del-combo" data-id="${c.id}">刪除</button>
-              </div>
-            </td>
-          </tr>`).join('');
+              <tr>
+                <td>${c.id}</td>
+                <td>${c.name}</td>
+                <td>${c.shopName || '-'}</td>
+                <td class="text-end">$${c.price}</td>
+                <td>${(c.items || []).map(i => `${i.itemName || ('項目#' + i.menuItemId)} ×${i.quantity}`).join('、')}</td>
+                <td>${c.isLimited ? (c.remainingQty ?? 0) + ' / ' + (c.limitedQty ?? '-') : tag(false, '限量', '不限')}</td>
+                <td>${tag(!!c.isActive, '上架', '下架')}</td>
+                <td>
+                  <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary" data-act="edit-combo" data-id="${c.id}">編輯</button>
+                    <button class="btn btn-outline-danger" data-act="del-combo" data-id="${c.id}">刪除</button>
+                  </div>
+                </td>
+              </tr>`).join('');
                 pager(el.combosPager, total, page, pageSize, p => loadCombos(p));
                 el.combosBody.querySelectorAll('button[data-act]').forEach(btn => btn.addEventListener('click', onComboAction));
             }
@@ -859,10 +859,10 @@
                 if (el.comboLines) {
                     el.comboLines.innerHTML = (c?.items || []).map(i =>
                         `<tr data-menu-id="${i.menuItemId}">
-               <td>${i.itemName || ('項目#' + i.menuItemId)}</td>
-               <td style="width:120px"><input class="form-control form-control-sm" type="number" min="1" step="1" value="${i.quantity || 1}" /></td>
-               <td style="width:100px"><button class="btn btn-sm btn-outline-danger" data-act="rm-line">移除</button></td>
-             </tr>`
+                   <td>${i.itemName || ('項目#' + i.menuItemId)}</td>
+                   <td style="width:120px"><input class="form-control form-control-sm" type="number" min="1" step="1" value="${i.quantity || 1}" /></td>
+                   <td style="width:100px"><button class="btn btn-sm btn-outline-danger" data-act="rm-line">移除</button></td>
+                 </tr>`
                     ).join('');
                     bindComboLineEvents(); // 每次打開都重綁
                 }
@@ -886,8 +886,8 @@
                 const tr = document.createElement('tr');
                 tr.dataset.menuId = id;
                 tr.innerHTML = `<td>${found.name}</td>
-                        <td style="width:120px"><input class="form-control form-control-sm" type="number" min="1" step="1" value="${qty}" /></td>
-                        <td style="width:100px"><button class="btn btn-sm btn-outline-danger" data-act="rm-line">移除</button></td>`;
+                            <td style="width:120px"><input class="form-control form-control-sm" type="number" min="1" step="1" value="${qty}" /></td>
+                            <td style="width:100px"><button class="btn btn-sm btn-outline-danger" data-act="rm-line">移除</button></td>`;
                 el.comboLines.appendChild(tr);
                 bindComboLineEvents();
             });
@@ -984,18 +984,18 @@
                 const body = el.tablesBody;
                 if (!body) return;
                 body.innerHTML = items.map(t => `
-          <tr>
-            <td>${t.id}</td>
-            <td>${t.code}</td>
-            <td>${t.zone || ''}</td>
-            <td>${tag(!!t.isActive, '啟用', '停用')}</td>
-            <td>
-              <div class="btn-group btn-group-sm">
-                <button class="btn btn-outline-secondary" data-act="edit-table" data-id="${t.id}">編輯</button>
-                <button class="btn btn-outline-danger" data-act="del-table" data-id="${t.id}">刪除</button>
-              </div>
-            </td>
-          </tr>`).join('');
+              <tr>
+                <td>${t.id}</td>
+                <td>${t.code}</td>
+                <td>${t.zone || ''}</td>
+                <td>${tag(!!t.isActive, '啟用', '停用')}</td>
+                <td>
+                  <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary" data-act="edit-table" data-id="${t.id}">編輯</button>
+                    <button class="btn btn-outline-danger" data-act="del-table" data-id="${t.id}">刪除</button>
+                  </div>
+                </td>
+              </tr>`).join('');
                 pager(el.tablesPager, total, page, pageSize, p => loadTables(p));
                 body.querySelectorAll('button[data-act]').forEach(btn => btn.addEventListener('click', onTableAction));
             }
@@ -1131,19 +1131,19 @@
                 const body = el.shopsBody;
                 if (!body) return;
                 body.innerHTML = items.map(s => `
-          <tr>
-            <td>${s.id}</td>
-            <td>${s.name}</td>
-            <td>${s.phone || ''}</td>
-            <td>${s.addr || ''}</td>
-            <td>${tag(!!s.isActive, '啟用', '停用')}</td>
-            <td>
-              <div class="btn-group btn-group-sm">
-                <button class="btn btn-outline-secondary" data-act="edit-shop" data-id="${s.id}">編輯</button>
-                <button class="btn btn-outline-danger" data-act="del-shop" data-id="${s.id}">刪除</button>
-              </div>
-            </td>
-          </tr>`).join('');
+              <tr>
+                <td>${s.id}</td>
+                <td>${s.name}</td>
+                <td>${s.phone || ''}</td>
+                <td>${s.addr || ''}</td>
+                <td>${tag(!!s.isActive, '啟用', '停用')}</td>
+                <td>
+                  <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary" data-act="edit-shop" data-id="${s.id}">編輯</button>
+                    <button class="btn btn-outline-danger" data-act="del-shop" data-id="${s.id}">刪除</button>
+                  </div>
+                </td>
+              </tr>`).join('');
                 pager(el.shopsPager, total, page, pageSize, p => loadShops(p));
                 body.querySelectorAll('button[data-act]').forEach(btn => btn.addEventListener('click', onShopAction));
             }
