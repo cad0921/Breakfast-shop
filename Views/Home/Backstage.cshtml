@@ -209,7 +209,7 @@
                     <div class="table-responsive">
                         <table class="table align-middle table-bordered">
                             <thead>
-                                <tr><th>#</th><th>名稱</th><th class="text-end">價格</th><th>成分</th><th>限量</th><th>上架</th><th>操作</th></tr>
+                                <tr><th>#</th><th>名稱</th><th>店家</th><th class="text-end">價格</th><th>成分</th><th>限量</th><th>上架</th><th>操作</th></tr>
                             </thead>
                             <tbody id="itemsBody"></tbody>
                         </table>
@@ -232,7 +232,7 @@
                     <div class="table-responsive">
                         <table class="table align-middle table-bordered">
                             <thead>
-                                <tr><th>#</th><th>名稱</th><th class="text-end">價格</th><th>內容</th><th>限量</th><th>上架</th><th>操作</th></tr>
+                                <tr><th>#</th><th>名稱</th><th>店家</th><th class="text-end">價格</th><th>內容</th><th>限量</th><th>上架</th><th>操作</th></tr>
                             </thead>
                             <tbody id="combosBody"></tbody>
                         </table>
@@ -527,9 +527,9 @@
                 if (path.startsWith('/api/menu-items')) {
                     if (!state.items.length) {
                         state.items = [
-                            { id: 1, name: '日光蛋吐司', price: 45, ingredients: ['egg', 'toast'], isLimited: false, limitedQty: null, remainingQty: null, isActive: true },
-                            { id: 2, name: '火腿蛋吐司', price: 55, ingredients: ['ham', 'egg', 'toast'], isLimited: false, limitedQty: null, remainingQty: null, isActive: true },
-                            { id: 3, name: '鮮奶茶', price: 35, ingredients: ['milk', 'tea'], isLimited: true, limitedQty: 50, remainingQty: 23, isActive: true },
+                            { id: 1, name: '日光蛋吐司', price: 45, shopName: '亮亮早餐 總店', ingredients: ['egg', 'toast'], isLimited: false, limitedQty: null, remainingQty: null, isActive: true },
+                            { id: 2, name: '火腿蛋吐司', price: 55, shopName: '亮亮早餐 總店', ingredients: ['ham', 'egg', 'toast'], isLimited: false, limitedQty: null, remainingQty: null, isActive: true },
+                            { id: 3, name: '鮮奶茶', price: 35, shopName: '亮亮早餐 板橋店', ingredients: ['milk', 'tea'], isLimited: true, limitedQty: 50, remainingQty: 23, isActive: true },
                         ];
                     }
                     return paginateLocal(state.items, getQuery(path));
@@ -537,7 +537,7 @@
                 if (path.startsWith('/api/combos')) {
                     if (!state.combos.length) {
                         state.combos = [
-                            { id: 1, name: '活力早餐A', price: 99, isLimited: false, limitedQty: null, remainingQty: null, isActive: true, items: [{ menuItemId: 1, quantity: 1, itemName: '日光蛋吐司' }, { menuItemId: 3, quantity: 1, itemName: '鮮奶茶' }] },
+                            { id: 1, name: '活力早餐A', price: 99, shopName: '亮亮早餐 總店', isLimited: false, limitedQty: null, remainingQty: null, isActive: true, items: [{ menuItemId: 1, quantity: 1, itemName: '日光蛋吐司' }, { menuItemId: 3, quantity: 1, itemName: '鮮奶茶' }] },
                         ];
                     }
                     return paginateLocal(state.combos, getQuery(path));
@@ -572,7 +572,7 @@
                 if (q.keyword) {
                     list = list.filter(x => {
                         const key = q.keyword;
-                        return [x.name, x.code, x.zone, x.phone, x.addr].some(val => (val || '').includes(key));
+                        return [x.name, x.code, x.zone, x.phone, x.addr, x.shopName].some(val => (val || '').includes(key));
                     });
                 }
                 if (q.active !== undefined && q.active !== '') {
@@ -593,6 +593,7 @@
                     const mapped = rows.map(r => ({
                         id: r.Id,
                         name: r.Name || '',
+                        shopName: r.ShopName || '',
                         price: Number(r.Money || 0),
                         ingredients: (r.Element || '').split(',').map(s => (s || '').trim()).filter(Boolean),
                         isActive: !!r.IsActive,
@@ -600,7 +601,7 @@
                     }));
 
                     const kw = el.kwItems.value.trim();
-                    const filtered = kw ? mapped.filter(x => (x.name || '').includes(kw)) : mapped;
+                    const filtered = kw ? mapped.filter(x => (x.name || '').includes(kw) || (x.shopName || '').includes(kw)) : mapped;
 
                     const pageSize = state.pageSize;
                     const total = filtered.length;
@@ -612,14 +613,14 @@
                     renderItems({ items, total, page: current, pageSize });
                     state.itemsPage = current;
 
-                    if (!state.allItemsForCombo.length) {
-                        state.allItemsForCombo = mapped;
-                        renderComboItemSelect();
-                    }
+                    state.allItemsForCombo = mapped;
+                    renderComboItemSelect();
                 } catch (err) {
                     state.demo = true; showDemoBanner(true);
                     const data = await api(`/api/menu-items?page=${page}&pageSize=${state.pageSize}`);
                     renderItems(data); state.itemsPage = data.page;
+                    state.allItemsForCombo = data.items || [];
+                    renderComboItemSelect();
                 }
             }
             function renderItems({ items, total, page, pageSize }) {
@@ -628,6 +629,7 @@
           <tr>
             <td>${m.id}</td>
             <td>${m.name}</td>
+            <td>${m.shopName || '-'}</td>
             <td class="text-end">$${m.price}</td>
             <td>${(m.ingredients || []).join(', ')}</td>
             <td>${m.isLimited ? (m.remainingQty ?? 0) + ' / ' + (m.limitedQty ?? '-') : tag(false, '限量', '不限')}</td>
@@ -715,7 +717,10 @@
 
             // ========== Combo ==========
             function renderComboItemSelect() {
-                el.comboItemSelect.innerHTML = '<option value="">選擇餐點…</option>' + state.allItemsForCombo.map(m => `<option value="${m.id}">${m.name} ($${m.price})</option>`).join('');
+                el.comboItemSelect.innerHTML = '<option value="">選擇餐點…</option>' + state.allItemsForCombo.map(m => {
+                    const shopLabel = m.shopName ? ` - ${m.shopName}` : '';
+                    return `<option value="${m.id}">${m.name} ($${m.price})${shopLabel}</option>`;
+                }).join('');
             }
             async function loadCombos(page = 1) {
                 try {
@@ -724,11 +729,14 @@
                     if (!res.ok) throw new Error(await res.text());
                     const rows = await res.json();
                     const mapped = rows.map(r => ({
-                        id: r.Id, name: r.ComboMeal || '', price: Number(r.Money || 0),
+                        id: r.Id,
+                        name: r.ComboMeal || '',
+                        shopName: r.ShopName || '',
+                        price: Number(r.Money || 0),
                         isActive: !!r.IsActive, isLimited: false, limitedQty: null, remainingQty: null, items: []
                     }));
                     const kw = el.kwCombos.value.trim();
-                    const filtered = kw ? mapped.filter(x => (x.name || '').includes(kw)) : mapped;
+                    const filtered = kw ? mapped.filter(x => (x.name || '').includes(kw) || (x.shopName || '').includes(kw)) : mapped;
 
                     const pageSize = state.pageSize;
                     const total = filtered.length;
@@ -750,6 +758,7 @@
           <tr>
             <td>${c.id}</td>
             <td>${c.name}</td>
+            <td>${c.shopName || '-'}</td>
             <td class="text-end">$${c.price}</td>
             <td>${(c.items || []).map(i => `${i.itemName || ('項目#' + i.menuItemId)} ×${i.quantity}`).join('、')}</td>
             <td>${c.isLimited ? (c.remainingQty ?? 0) + ' / ' + (c.limitedQty ?? '-') : tag(false, '限量', '不限')}</td>
