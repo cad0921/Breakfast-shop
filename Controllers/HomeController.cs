@@ -42,6 +42,9 @@ namespace breakfastshop.Controllers
                 }
 
                 if (model == null) throw new ArgumentException("缺少資料");
+                if (model.ShopId == Guid.Empty) throw new ArgumentException("缺少 ShopId");
+                if (string.IsNullOrWhiteSpace(model.Name)) throw new ArgumentException("餐點名稱必填");
+                if (model.Money.HasValue && model.Money.Value < 0) throw new ArgumentException("金額不可為負值");
 
                 var data = new Dictionary<string, object>();
                 if (string.Equals(actionType, "Create", StringComparison.OrdinalIgnoreCase))
@@ -109,6 +112,9 @@ namespace breakfastshop.Controllers
                 }
 
                 if (model == null) throw new ArgumentException("缺少資料");
+                if (model.ShopId == Guid.Empty) throw new ArgumentException("缺少 ShopId");
+                if (string.IsNullOrWhiteSpace(model.ComboMeal)) throw new ArgumentException("套餐內容必填");
+                if (model.Money.HasValue && model.Money.Value < 0) throw new ArgumentException("金額不可為負值");
 
                 var data = new Dictionary<string, object>();
                 if (string.Equals(actionType, "Create", StringComparison.OrdinalIgnoreCase))
@@ -166,6 +172,7 @@ namespace breakfastshop.Controllers
                 }
 
                 if (model == null) throw new ArgumentException("缺少資料");
+                if (string.IsNullOrWhiteSpace(model.Name)) throw new ArgumentException("店家名稱必填");
 
                 var data = new Dictionary<string, object>();
                 if (string.Equals(actionType, "Create", StringComparison.OrdinalIgnoreCase))
@@ -235,6 +242,7 @@ namespace breakfastshop.Controllers
                 }
 
                 if (model == null) throw new ArgumentException("缺少資料");
+                if (model.Number <= 0) throw new ArgumentException("桌號必須為正整數");
                 var data = new Dictionary<string, object>();
 
                 if (string.Equals(actionType, "Create", StringComparison.OrdinalIgnoreCase))
