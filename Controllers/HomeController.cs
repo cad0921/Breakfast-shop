@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Web.Mvc;
 using breakfastshop.Models;
@@ -11,6 +11,11 @@ namespace breakfastshop.Controllers
 
         public ActionResult Index() { return View(); }
         public ActionResult Backstage() { return View(); }
+
+        public ActionResult Login()
+        {
+            return View();
+        }
 
         #region Meals
         [HttpGet]
@@ -303,6 +308,8 @@ namespace breakfastshop.Controllers
         public Guid Id { get; set; }
         public string Name { get; set; }
         public string Phone { get; set; }
+        public string Account { get; set; }
+        public string Password { get; set; }
         public string Addr { get; set; }
         public bool? IsActive { get; set; }
     }
