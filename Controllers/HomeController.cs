@@ -237,8 +237,8 @@ namespace breakfastshop.Controllers
                 if (string.Equals(actionType, "Delete", StringComparison.OrdinalIgnoreCase))
                 {
                     if (model == null || model.Id == Guid.Empty) throw new ArgumentException("缺少 Id");
-                    int rows = _db.DoSQL("Delete", "Table", id: model.Id.ToString());
-                    return Json(new { ok = rows > 0, rows });
+                    int rowsAffected = _db.DoSQL("Delete", "Table", id: model.Id.ToString());
+                    return Json(new { ok = rowsAffected > 0, rows = rowsAffected });
                 }
 
                 if (model == null) throw new ArgumentException("缺少資料");
