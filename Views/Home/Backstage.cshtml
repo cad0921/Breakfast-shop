@@ -843,7 +843,9 @@
                 el.comboId.value = c?.id || '';
                 el.comboName.value = c?.name || '';
                 el.comboPrice.value = c?.price || '';
-                el.comboActive.checked = (c?.isActive ?? true);
+                if (el.comboActive) {
+                    el.comboActive.checked = (c?.isActive ?? true);
+                }
                 el.comboLimited.checked = false; el.comboLimitedQty.value = ''; el.comboRemainingQty.value = '';
 
                 if (el.comboLines) {
@@ -886,7 +888,7 @@
                 const payload = {
                     name: el.comboName.value.trim(),
                     price: parseFloat(el.comboPrice.value || '0'),
-                    isActive: el.comboActive.checked,
+                    isActive: el.comboActive ? el.comboActive.checked : true,
                     items: $all('#comboLines tr').map(tr => ({ menuItemId: parseInt(tr.dataset.menuId), quantity: Math.max(1, parseInt(tr.querySelector('input').value || '1')) }))
                 };
                 const id = el.comboId.value || '';
