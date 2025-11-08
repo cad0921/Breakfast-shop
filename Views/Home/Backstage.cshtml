@@ -311,6 +311,12 @@
                                 <label class="form-check-label" for="itemActive">上架</label>
                             </div>
                         </div>
+                        <div class="col-md-6">
+                            <label class="form-label">店家</label>
+                            <select id="itemShopId" class="form-select" required>
+                                <option value="">選擇店家…</option>
+                            </select>
+                        </div>
                         <div class="col-12">
                             <label class="form-label">成分（以逗號分隔）</label>
                             <input id="itemIngredients" class="form-control" placeholder="egg, ham, cheese" />
@@ -486,7 +492,7 @@
                 // shops
                 kwShops: $('#kwShops'), activeShops: $('#activeShops'), btnSearchShops: $('#btnSearchShops'), btnNewShop: $('#btnNewShop'), shopsBody: $('#shopsBody'), shopsPager: $('#shopsPager'),
                 // modals & forms
-                itemModal: $('#itemModal'), itemForm: $('#itemForm'), itemId: $('#itemId'), itemName: $('#itemName'), itemPrice: $('#itemPrice'), itemIngredients: $('#itemIngredients'), itemActive: $('#itemActive'), itemLimited: $('#itemLimited'), itemLimitedQty: $('#itemLimitedQty'), itemRemainingQty: $('#itemRemainingQty'), saveItem: $('#saveItem'),
+                itemModal: $('#itemModal'), itemForm: $('#itemForm'), itemId: $('#itemId'), itemName: $('#itemName'), itemShopId: $('#itemShopId'), itemPrice: $('#itemPrice'), itemIngredients: $('#itemIngredients'), itemActive: $('#itemActive'), itemLimited: $('#itemLimited'), itemLimitedQty: $('#itemLimitedQty'), itemRemainingQty: $('#itemRemainingQty'), saveItem: $('#saveItem'),
                 comboModal: $('#comboModal'), comboForm: $('#comboForm'), comboId: $('#comboId'), comboName: $('#comboName'), comboPrice: $('#comboPrice'), comboActive: $('#comboActive'), comboLimited: $('#comboLimited'), comboLimitedQty: $('#comboLimitedQty'), comboRemainingQty: $('#comboRemainingQty'), comboItemSelect: $('#comboItemSelect'), comboItemQty: $('#comboItemQty'), addComboLine: $('#addComboLine'),
                 comboLines: document.getElementById('comboLines'), // 用 getElementById，避免 querySelector 時機問題
                 saveCombo: $('#saveCombo'),
@@ -527,9 +533,9 @@
                 if (path.startsWith('/api/menu-items')) {
                     if (!state.items.length) {
                         state.items = [
-                            { id: 1, name: '日光蛋吐司', price: 45, shopName: '亮亮早餐 總店', ingredients: ['egg', 'toast'], isLimited: false, limitedQty: null, remainingQty: null, isActive: true },
-                            { id: 2, name: '火腿蛋吐司', price: 55, shopName: '亮亮早餐 總店', ingredients: ['ham', 'egg', 'toast'], isLimited: false, limitedQty: null, remainingQty: null, isActive: true },
-                            { id: 3, name: '鮮奶茶', price: 35, shopName: '亮亮早餐 板橋店', ingredients: ['milk', 'tea'], isLimited: true, limitedQty: 50, remainingQty: 23, isActive: true },
+                            { id: 1, shopId: 1, name: '日光蛋吐司', price: 45, shopName: '亮亮早餐 總店', ingredients: ['egg', 'toast'], isLimited: false, limitedQty: null, remainingQty: null, isActive: true },
+                            { id: 2, shopId: 1, name: '火腿蛋吐司', price: 55, shopName: '亮亮早餐 總店', ingredients: ['ham', 'egg', 'toast'], isLimited: false, limitedQty: null, remainingQty: null, isActive: true },
+                            { id: 3, shopId: 2, name: '鮮奶茶', price: 35, shopName: '亮亮早餐 板橋店', ingredients: ['milk', 'tea'], isLimited: true, limitedQty: 50, remainingQty: 23, isActive: true },
                         ];
                     }
                     return paginateLocal(state.items, getQuery(path));
@@ -593,6 +599,7 @@
                     const mapped = rows.map(r => ({
                         id: r.Id,
                         name: r.Name || '',
+                        shopId: r.ShopId || '',
                         shopName: r.ShopName || '',
                         price: Number(r.Money || 0),
                         ingredients: (r.Element || '').split(',').map(s => (s || '').trim()).filter(Boolean),
@@ -619,7 +626,10 @@
                     state.demo = true; showDemoBanner(true);
                     const data = await api(`/api/menu-items?page=${page}&pageSize=${state.pageSize}`);
                     renderItems(data); state.itemsPage = data.page;
-                    state.allItemsForCombo = data.items || [];
+                    state.allItemsForCombo = (data.items || []).map(item => Object.assign({}, item, {
+                        shopId: item.shopId ?? item.ShopId ?? item.shop_id ?? '',
+                        shopName: item.shopName ?? item.ShopName ?? item.shop_name ?? item.shop ?? ''
+                    }));
                     renderComboItemSelect();
                 }
             }
@@ -644,6 +654,27 @@
                 pager(el.itemsPager, total, page, pageSize, p => loadItems(p));
                 body.querySelectorAll('button[data-act]').forEach(btn => btn.addEventListener('click', onItemAction));
             }
+            function renderItemShopOptions(selectedId = '') {
+                const select = el.itemShopId;
+                if (!select) return;
+                const preserve = selectedId || select.value || '';
+                const shops = state.shops || [];
+                const options = ['<option value="">選擇店家…</option>'];
+                shops.forEach(shop => {
+                    const id = shop.id ?? '';
+                    if (!id) return;
+                    const name = shop.name || '(未命名)';
+                    const suffix = shop.isActive === false ? '（停用）' : '';
+                    options.push(`<option value="${id}">${name}${suffix}</option>`);
+                });
+                select.innerHTML = options.join('');
+                if (preserve) {
+                    select.value = preserve;
+                    if (select.value !== preserve) {
+                        select.value = '';
+                    }
+                }
+            }
             async function onItemAction(e) {
                 const id = e.currentTarget.dataset.id;
                 const act = e.currentTarget.dataset.act;
@@ -656,21 +687,44 @@
                 }
             }
             function openItemModal(m) {
-                el.itemForm.reset(); el.itemId.value = m?.id || ''; el.itemName.value = m?.name || ''; el.itemPrice.value = m?.price || '';
+                el.itemForm.reset();
+                renderItemShopOptions(m?.shopId || '');
+                el.itemId.value = m?.id || '';
+                el.itemName.value = m?.name || '';
+                el.itemPrice.value = m?.price || '';
+                if (el.itemShopId) {
+                    el.itemShopId.value = m?.shopId || '';
+                    if (m?.shopId && el.itemShopId.value !== m.shopId) {
+                        el.itemShopId.value = '';
+                    }
+                }
                 el.itemIngredients.value = (m?.ingredients || []).join(', ');
                 el.itemActive.checked = (m?.isActive ?? true);
                 el.itemLimited.checked = false;
-                el.itemLimitedQty.value = ''; el.itemRemainingQty.value = '';
+                el.itemLimitedQty.value = '';
+                el.itemRemainingQty.value = '';
+                if (!state.shops?.length) {
+                    loadShops();
+                }
                 new bootstrap.Modal(el.itemModal).show();
             }
             el.btnNewItem?.addEventListener('click', e => { e.preventDefault(); openItemModal(null); });
             el.saveItem?.addEventListener('click', async e => {
                 e.preventDefault();
+                const shopId = el.itemShopId?.value || '';
+                if (!shopId) {
+                    toast('請選擇店家');
+                    el.itemShopId?.focus();
+                    return;
+                }
+                const shop = state.shops?.find(s => String(s.id) === String(shopId));
                 const payload = {
                     name: el.itemName.value.trim(),
                     price: parseFloat(el.itemPrice.value || '0'),
                     ingredients: el.itemIngredients.value.split(',').map(s => s.trim()).filter(Boolean),
-                    isActive: el.itemActive.checked
+                    isActive: el.itemActive.checked,
+                    shopId,
+                    shopName: shop?.name || ''
                 };
                 const id = el.itemId.value || '';
                 await upsertItem(id ? 'PUT' : 'POST', id || null, payload);
@@ -681,7 +735,7 @@
                     const form = new URLSearchParams();
                     form.append('actionType', id ? 'Update' : 'Create');
                     form.append('model.Id', id ? id : '');
-                    form.append('model.ShopId', SHOP_ID);
+                    form.append('model.ShopId', payload.shopId || '');
                     form.append('model.Name', payload.name || '');
                     form.append('model.Money', (payload.price || 0).toString());
                     form.append('model.IsActive', payload.isActive ? 'true' : 'false');
@@ -1034,6 +1088,7 @@
                         isActive: !!r.IsActive
                     }));
                     state.shops = mapped;
+                    renderItemShopOptions(el.itemShopId?.value || '');
 
                     const kw = (el.kwShops?.value || '').trim();
                     let filtered = kw ? mapped.filter(x => [x.name, x.phone, x.addr].some(v => (v || '').includes(kw))) : mapped;
@@ -1059,6 +1114,7 @@
                     state.shops = data.items || [];
                     renderShops(data);
                     state.shopsPage = data.page;
+                    renderItemShopOptions(el.itemShopId?.value || '');
                 }
             }
             function renderShops({ items, total, page, pageSize }) {
