@@ -204,7 +204,7 @@
                             <option value="false">下架</option>
                         </select>
                         <button class="btn btn-outline-secondary" id="btnSearchItems">搜尋</button>
-                        <button class="btn btn-accent ms-auto" data-bs-toggle="modal" data-bs-target="#itemModal" id="btnNewItem">+ 新增餐點</button>
+                        <button type="button" class="btn btn-accent ms-auto" id="btnNewItem">+ 新增餐點</button>
                     </div>
                     <div class="table-responsive">
                         <table class="table align-middle table-bordered">
@@ -227,7 +227,7 @@
                             <option value="false">下架</option>
                         </select>
                         <button class="btn btn-outline-secondary" id="btnSearchCombos">搜尋</button>
-                        <button class="btn btn-accent ms-auto" data-bs-toggle="modal" data-bs-target="#comboModal" id="btnNewCombo">+ 新增套餐</button>
+                        <button type="button" class="btn btn-accent ms-auto" id="btnNewCombo">+ 新增套餐</button>
                     </div>
                     <div class="table-responsive">
                         <table class="table align-middle table-bordered">
@@ -250,7 +250,7 @@
                             <option value="false">停用</option>
                         </select>
                         <button class="btn btn-outline-secondary" id="btnSearchTables">搜尋</button>
-                        <button class="btn btn-accent ms-auto" data-bs-toggle="modal" data-bs-target="#tableModal" id="btnNewTable">+ 新增桌號</button>
+                        <button type="button" class="btn btn-accent ms-auto" id="btnNewTable">+ 新增桌號</button>
                     </div>
                     <div class="table-responsive">
                         <table class="table align-middle table-bordered">
@@ -272,7 +272,7 @@
                             <option value="false">停用</option>
                         </select>
                         <button class="btn btn-outline-secondary" id="btnSearchShops">搜尋</button>
-                        <button class="btn btn-accent ms-auto" data-bs-toggle="modal" data-bs-target="#shopModal" id="btnNewShop">+ 新增店家</button>
+                        <button type="button" class="btn btn-accent ms-auto" id="btnNewShop">+ 新增店家</button>
                     </div>
                     <div class="table-responsive">
                         <table class="table align-middle table-bordered">
@@ -387,7 +387,7 @@
         </div>
     </div>
 
-    <!-- 桌號 Modal（仍 Demo） -->
+    <!-- 桌號 Modal -->
     <div class="modal fade" id="tableModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-md modal-dialog-centered">
             <div class="modal-content">
@@ -396,8 +396,8 @@
                     <form id="tableForm" class="row g-3">
                         <input type="hidden" id="tableId" />
                         <div class="col-md-6">
-                            <label class="form-label">桌碼</label>
-                            <input id="tableCode" class="form-control" required />
+                            <label class="form-label">桌號</label>
+                            <input id="tableCode" type="number" min="1" step="1" class="form-control" required />
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">區域</label>
@@ -414,6 +414,42 @@
                 <div class="modal-footer">
                     <button class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
                     <button class="btn btn-accent" id="saveTable">儲存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 店家 Modal -->
+    <div class="modal fade" id="shopModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title">店家</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+                <div class="modal-body">
+                    <form id="shopForm" class="row g-3">
+                        <input type="hidden" id="shopId" />
+                        <div class="col-md-6">
+                            <label class="form-label">店名</label>
+                            <input id="shopName" class="form-control" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">電話</label>
+                            <input id="shopPhone" class="form-control" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">地址</label>
+                            <input id="shopAddr" class="form-control" />
+                        </div>
+                        <div class="col-md-6 d-flex align-items-end">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="shopActive" checked>
+                                <label class="form-check-label" for="shopActive">啟用</label>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                    <button class="btn btn-accent" id="saveShop">儲存</button>
                 </div>
             </div>
         </div>
@@ -436,23 +472,26 @@
             const SHOP_ID = 'PUT-YOUR-SHOP-GUID-HERE';
 
             const apiBase = ''; // 與後端同站點
-            const state = { demo: false, itemsPage: 1, combosPage: 1, tablesPage: 1, pageSize: 10, items: [], combos: [], tables: [], allItemsForCombo: [] };
+            const state = { demo: false, itemsPage: 1, combosPage: 1, tablesPage: 1, shopsPage: 1, pageSize: 10, items: [], combos: [], tables: [], shops: [], allItemsForCombo: [] };
             const $ = (sel) => document.querySelector(sel);
             const $all = (sel) => Array.from(document.querySelectorAll(sel));
             const el = {
                 apiBaseText: $('#apiBaseText'), demoBanner: $('#demoBanner'),
                 // items
-                kwItems: $('#kwItems'), activeItems: $('#activeItems'), btnSearchItems: $('#btnSearchItems'), itemsBody: $('#itemsBody'), itemsPager: $('#itemsPager'),
+                kwItems: $('#kwItems'), activeItems: $('#activeItems'), btnSearchItems: $('#btnSearchItems'), btnNewItem: $('#btnNewItem'), itemsBody: $('#itemsBody'), itemsPager: $('#itemsPager'),
                 // combos
-                kwCombos: $('#kwCombos'), activeCombos: $('#activeCombos'), btnSearchCombos: $('#btnSearchCombos'), combosBody: $('#combosBody'), combosPager: $('#combosPager'),
-                // tables（仍 demo）
-                kwTables: $('#kwTables'), activeTables: $('#activeTables'), btnSearchTables: $('#btnSearchTables'), tablesBody: $('#tablesBody'), tablesPager: $('#tablesPager'),
+                kwCombos: $('#kwCombos'), activeCombos: $('#activeCombos'), btnSearchCombos: $('#btnSearchCombos'), btnNewCombo: $('#btnNewCombo'), combosBody: $('#combosBody'), combosPager: $('#combosPager'),
+                // tables
+                kwTables: $('#kwTables'), activeTables: $('#activeTables'), btnSearchTables: $('#btnSearchTables'), btnNewTable: $('#btnNewTable'), tablesBody: $('#tablesBody'), tablesPager: $('#tablesPager'),
+                // shops
+                kwShops: $('#kwShops'), activeShops: $('#activeShops'), btnSearchShops: $('#btnSearchShops'), btnNewShop: $('#btnNewShop'), shopsBody: $('#shopsBody'), shopsPager: $('#shopsPager'),
                 // modals & forms
                 itemModal: $('#itemModal'), itemForm: $('#itemForm'), itemId: $('#itemId'), itemName: $('#itemName'), itemPrice: $('#itemPrice'), itemIngredients: $('#itemIngredients'), itemActive: $('#itemActive'), itemLimited: $('#itemLimited'), itemLimitedQty: $('#itemLimitedQty'), itemRemainingQty: $('#itemRemainingQty'), saveItem: $('#saveItem'),
                 comboModal: $('#comboModal'), comboForm: $('#comboForm'), comboId: $('#comboId'), comboName: $('#comboName'), comboPrice: $('#comboPrice'), comboActive: $('#comboActive'), comboLimited: $('#comboLimited'), comboLimitedQty: $('#comboLimitedQty'), comboRemainingQty: $('#comboRemainingQty'), comboItemSelect: $('#comboItemSelect'), comboItemQty: $('#comboItemQty'), addComboLine: $('#addComboLine'),
                 comboLines: document.getElementById('comboLines'), // 用 getElementById，避免 querySelector 時機問題
                 saveCombo: $('#saveCombo'),
                 tableModal: $('#tableModal'), tableForm: $('#tableForm'), tableId: $('#tableId'), tableCode: $('#tableCode'), tableZone: $('#tableZone'), tableActive: $('#tableActive'), saveTable: $('#saveTable'),
+                shopModal: $('#shopModal'), shopForm: $('#shopForm'), shopId: $('#shopId'), shopName: $('#shopName'), shopPhone: $('#shopPhone'), shopAddr: $('#shopAddr'), shopActive: $('#shopActive'), saveShop: $('#saveShop'),
                 toggleDemo: $('#toggleDemo'),
             };
 
@@ -513,6 +552,15 @@
                     }
                     return paginateLocal(state.tables, getQuery(path));
                 }
+                if (path.startsWith('/api/shops')) {
+                    if (!state.shops.length) {
+                        state.shops = [
+                            { id: 1, name: '亮亮早餐 總店', phone: '02-1234-5678', addr: '台北市信義區中正路 1 號', isActive: true },
+                            { id: 2, name: '亮亮早餐 板橋店', phone: '02-8765-4321', addr: '新北市板橋區文化路 100 號', isActive: false },
+                        ];
+                    }
+                    return paginateLocal(state.shops, getQuery(path));
+                }
                 return { items: [], total: 0, page: 1, pageSize: state.pageSize };
             }
             function getQuery(path) {
@@ -521,7 +569,12 @@
             }
             function paginateLocal(arr, q) {
                 let list = [...arr];
-                if (q.keyword) { list = list.filter(x => (x.name || x.code || '').includes(q.keyword)); }
+                if (q.keyword) {
+                    list = list.filter(x => {
+                        const key = q.keyword;
+                        return [x.name, x.code, x.zone, x.phone, x.addr].some(val => (val || '').includes(key));
+                    });
+                }
                 if (q.active !== undefined && q.active !== '') {
                     const flag = q.active === 'true'; list = list.filter(x => (x.isActive === flag));
                 }
@@ -608,8 +661,9 @@
                 el.itemLimitedQty.value = ''; el.itemRemainingQty.value = '';
                 new bootstrap.Modal(el.itemModal).show();
             }
-            el.btnNewItem?.addEventListener('click', () => openItemModal(null));
-            el.saveItem?.addEventListener('click', async () => {
+            el.btnNewItem?.addEventListener('click', e => { e.preventDefault(); openItemModal(null); });
+            el.saveItem?.addEventListener('click', async e => {
+                e.preventDefault();
                 const payload = {
                     name: el.itemName.value.trim(),
                     price: parseFloat(el.itemPrice.value || '0'),
@@ -742,6 +796,7 @@
 
                 new bootstrap.Modal(el.comboModal).show();
             }
+            el.btnNewCombo?.addEventListener('click', e => { e.preventDefault(); openComboModal(null); });
             function bindComboLineEvents() {
                 if (!el.comboLines) return;
                 el.comboLines.querySelectorAll('[data-act=rm-line]').forEach(btn => {
@@ -763,7 +818,8 @@
                 el.comboLines.appendChild(tr);
                 bindComboLineEvents();
             });
-            el.saveCombo?.addEventListener('click', async () => {
+            el.saveCombo?.addEventListener('click', async e => {
+                e.preventDefault();
                 const payload = {
                     name: el.comboName.value.trim(),
                     price: parseFloat(el.comboPrice.value || '0'),
@@ -811,13 +867,50 @@
                 }
             }
 
-            // ========== Tables（仍 Demo） ==========
+            // ========== Tables ==========
             async function loadTables(page = 1) {
-                const data = await api(`/api/tables?page=${page}&pageSize=${state.pageSize}`);
-                renderTables(data); state.tablesPage = data.page;
+                try {
+                    const activeVal = el.activeTables?.value ?? '';
+                    const res = await fetch(`/Home/GetTable?onlyActive=${encodeURIComponent(activeVal)}`, { method: 'GET', headers: { 'Accept': 'application/json' } });
+                    if (!res.ok) throw new Error(await res.text());
+                    const rows = await res.json();
+                    const mapped = rows.map(r => ({
+                        id: r.Id,
+                        code: String(r.Number ?? ''),
+                        zone: r.Zone || '',
+                        isActive: !!r.IsActive
+                    }));
+                    state.tables = mapped;
+
+                    const kw = (el.kwTables?.value || '').trim();
+                    let filtered = kw ? mapped.filter(x => (x.code || '').includes(kw) || (x.zone || '').includes(kw)) : mapped;
+                    const actVal = el.activeTables?.value;
+                    if (actVal !== undefined && actVal !== '') {
+                        const flag = actVal === 'true';
+                        filtered = filtered.filter(x => x.isActive === flag);
+                    }
+
+                    const pageSize = state.pageSize;
+                    const total = filtered.length;
+                    const pages = Math.max(1, Math.ceil(total / pageSize));
+                    const current = Math.min(Math.max(1, page), pages);
+                    const start = (current - 1) * pageSize;
+                    const items = filtered.slice(start, start + pageSize);
+
+                    renderTables({ items, total, page: current, pageSize });
+                    state.tablesPage = current;
+                    state.demo = false; showDemoBanner(false);
+                } catch (err) {
+                    console.warn('loadTables failed', err);
+                    const data = await api(`/api/tables?page=${page}&pageSize=${state.pageSize}`);
+                    state.tables = data.items || [];
+                    renderTables(data); state.tablesPage = data.page;
+                }
             }
             function renderTables({ items, total, page, pageSize }) {
-                el.tablesBody.innerHTML = items.map(t => `
+                const body = el.tablesBody;
+                if (!body) return;
+                body.innerHTML = items.map(t => `
           <tr>
             <td>${t.id}</td>
             <td>${t.code}</td>
@@ -831,13 +924,246 @@
             </td>
           </tr>`).join('');
                 pager(el.tablesPager, total, page, pageSize, p => loadTables(p));
+                body.querySelectorAll('button[data-act]').forEach(btn => btn.addEventListener('click', onTableAction));
             }
+            function onTableAction(e) {
+                const id = e.currentTarget.dataset.id;
+                const act = e.currentTarget.dataset.act;
+                if (act === 'edit-table') {
+                    const t = state.tables.find(x => String(x.id) === String(id));
+                    openTableModal(t || null);
+                } else if (act === 'del-table') {
+                    if (!confirm('確定刪除？')) return;
+                    removeTable(id).then(() => loadTables(state.tablesPage));
+                }
+            }
+            function openTableModal(t) {
+                el.tableForm?.reset();
+                if (!el.tableModal) return;
+                el.tableId.value = t?.id || '';
+                el.tableCode.value = t?.code || '';
+                if (el.tableZone) el.tableZone.value = t?.zone || '';
+                el.tableActive.checked = (t?.isActive ?? true);
+                new bootstrap.Modal(el.tableModal).show();
+            }
+            el.btnNewTable?.addEventListener('click', e => { e.preventDefault(); openTableModal(null); });
+            async function upsertTable(action, id, payload) {
+                try {
+                    const form = new URLSearchParams();
+                    form.append('actionType', action);
+                    form.append('model.Id', id || '');
+                    form.append('model.Number', String(payload.number || ''));
+                    form.append('model.IsActive', payload.isActive ? 'true' : 'false');
+                    const res = await fetch('/Home/UpdateTable', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }, body: form.toString() });
+                    if (!res.ok) throw new Error(await res.text());
+                } catch (err) {
+                    if (state.demo) {
+                        if (action === 'Create') {
+                            const maxId = Math.max(0, ...state.tables.map(x => parseInt(x.id, 10) || 0));
+                            state.tables.push({ id: maxId + 1, code: payload.number.toString(), zone: payload.zone || '', isActive: payload.isActive });
+                        } else if (action === 'Update') {
+                            const target = state.tables.find(x => String(x.id) === String(id));
+                            if (target) Object.assign(target, { code: payload.number.toString(), zone: payload.zone || '', isActive: payload.isActive });
+                        }
+                        return;
+                    }
+                    toast('儲存桌號失敗：' + (err.message || err));
+                    throw err;
+                }
+            }
+            async function removeTable(id) {
+                try {
+                    const form = new URLSearchParams();
+                    form.append('actionType', 'Delete');
+                    form.append('model.Id', id);
+                    const res = await fetch('/Home/UpdateTable', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }, body: form.toString() });
+                    if (!res.ok) throw new Error(await res.text());
+                } catch (err) {
+                    if (state.demo) {
+                        state.tables = state.tables.filter(x => String(x.id) !== String(id));
+                        return;
+                    }
+                    toast('刪除桌號失敗：' + (err.message || err));
+                }
+            }
+            el.saveTable?.addEventListener('click', async e => {
+                e.preventDefault();
+                const raw = (el.tableCode?.value || '').trim();
+                const number = Number.parseInt(raw, 10);
+                if (!Number.isInteger(number) || number <= 0) {
+                    toast('桌號必須為正整數');
+                    el.tableCode?.focus();
+                    return;
+                }
+                const payload = {
+                    number,
+                    zone: (el.tableZone?.value || '').trim(),
+                    isActive: el.tableActive?.checked ?? true
+                };
+                const id = el.tableId?.value || '';
+                try {
+                    await upsertTable(id ? 'Update' : 'Create', id || null, payload);
+                    bootstrap.Modal.getInstance(el.tableModal)?.hide();
+                    loadTables(id ? state.tablesPage : 1);
+                } catch (err) {
+                    console.error('saveTable failed', err);
+                }
+            });
+
+            // ========== Shops ==========
+            async function loadShops(page = 1) {
+                try {
+                    const activeVal = el.activeShops?.value ?? '';
+                    const res = await fetch(`/Home/GetShop?onlyActive=${encodeURIComponent(activeVal)}`, { method: 'GET', headers: { 'Accept': 'application/json' } });
+                    if (!res.ok) throw new Error(await res.text());
+                    const rows = await res.json();
+                    const mapped = rows.map(r => ({
+                        id: r.Id,
+                        name: r.Name || '',
+                        phone: r.Phone || '',
+                        addr: r.Addr || '',
+                        isActive: !!r.IsActive
+                    }));
+                    state.shops = mapped;
+
+                    const kw = (el.kwShops?.value || '').trim();
+                    let filtered = kw ? mapped.filter(x => [x.name, x.phone, x.addr].some(v => (v || '').includes(kw))) : mapped;
+                    const actVal = el.activeShops?.value;
+                    if (actVal !== undefined && actVal !== '') {
+                        const flag = actVal === 'true';
+                        filtered = filtered.filter(x => x.isActive === flag);
+                    }
+
+                    const pageSize = state.pageSize;
+                    const total = filtered.length;
+                    const pages = Math.max(1, Math.ceil(total / pageSize));
+                    const current = Math.min(Math.max(1, page), pages);
+                    const start = (current - 1) * pageSize;
+                    const items = filtered.slice(start, start + pageSize);
+
+                    renderShops({ items, total, page: current, pageSize });
+                    state.shopsPage = current;
+                    state.demo = false; showDemoBanner(false);
+                } catch (err) {
+                    console.warn('loadShops failed', err);
+                    const data = await api(`/api/shops?page=${page}&pageSize=${state.pageSize}`);
+                    state.shops = data.items || [];
+                    renderShops(data);
+                    state.shopsPage = data.page;
+                }
+            }
+            function renderShops({ items, total, page, pageSize }) {
+                const body = el.shopsBody;
+                if (!body) return;
+                body.innerHTML = items.map(s => `
+          <tr>
+            <td>${s.id}</td>
+            <td>${s.name}</td>
+            <td>${s.phone || ''}</td>
+            <td>${s.addr || ''}</td>
+            <td>${tag(!!s.isActive, '啟用', '停用')}</td>
+            <td>
+              <div class="btn-group btn-group-sm">
+                <button class="btn btn-outline-secondary" data-act="edit-shop" data-id="${s.id}">編輯</button>
+                <button class="btn btn-outline-danger" data-act="del-shop" data-id="${s.id}">刪除</button>
+              </div>
+            </td>
+          </tr>`).join('');
+                pager(el.shopsPager, total, page, pageSize, p => loadShops(p));
+                body.querySelectorAll('button[data-act]').forEach(btn => btn.addEventListener('click', onShopAction));
+            }
+            function onShopAction(e) {
+                const id = e.currentTarget.dataset.id;
+                const act = e.currentTarget.dataset.act;
+                if (act === 'edit-shop') {
+                    const s = state.shops.find(x => String(x.id) === String(id));
+                    openShopModal(s || null);
+                } else if (act === 'del-shop') {
+                    if (!confirm('確定刪除？')) return;
+                    removeShop(id).then(() => loadShops(state.shopsPage));
+                }
+            }
+            function openShopModal(shop) {
+                el.shopForm?.reset();
+                if (!el.shopModal) return;
+                el.shopId.value = shop?.id || '';
+                el.shopName.value = shop?.name || '';
+                el.shopPhone.value = shop?.phone || '';
+                el.shopAddr.value = shop?.addr || '';
+                el.shopActive.checked = (shop?.isActive ?? true);
+                new bootstrap.Modal(el.shopModal).show();
+            }
+            el.btnNewShop?.addEventListener('click', e => { e.preventDefault(); openShopModal(null); });
+            async function upsertShop(action, id, payload) {
+                try {
+                    const form = new URLSearchParams();
+                    form.append('actionType', action);
+                    form.append('model.Id', id || '');
+                    form.append('model.Name', payload.name || '');
+                    form.append('model.Phone', payload.phone || '');
+                    form.append('model.Addr', payload.addr || '');
+                    form.append('model.IsActive', payload.isActive ? 'true' : 'false');
+                    const res = await fetch('/Home/UpdateShop', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }, body: form.toString() });
+                    if (!res.ok) throw new Error(await res.text());
+                } catch (err) {
+                    if (state.demo) {
+                        if (action === 'Create') {
+                            const maxId = Math.max(0, ...state.shops.map(x => parseInt(x.id, 10) || 0));
+                            state.shops.push({ id: maxId + 1, ...payload });
+                        } else if (action === 'Update') {
+                            const target = state.shops.find(x => String(x.id) === String(id));
+                            if (target) Object.assign(target, payload);
+                        }
+                        return;
+                    }
+                    toast('儲存店家失敗：' + (err.message || err));
+                    throw err;
+                }
+            }
+            async function removeShop(id) {
+                try {
+                    const form = new URLSearchParams();
+                    form.append('actionType', 'Delete');
+                    form.append('model.Id', id);
+                    const res = await fetch('/Home/UpdateShop', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }, body: form.toString() });
+                    if (!res.ok) throw new Error(await res.text());
+                } catch (err) {
+                    if (state.demo) {
+                        state.shops = state.shops.filter(x => String(x.id) !== String(id));
+                        return;
+                    }
+                    toast('刪除店家失敗：' + (err.message || err));
+                }
+            }
+            el.saveShop?.addEventListener('click', async e => {
+                e.preventDefault();
+                const payload = {
+                    name: (el.shopName?.value || '').trim(),
+                    phone: (el.shopPhone?.value || '').trim(),
+                    addr: (el.shopAddr?.value || '').trim(),
+                    isActive: el.shopActive?.checked ?? true
+                };
+                if (!payload.name) {
+                    toast('店名必填');
+                    el.shopName?.focus();
+                    return;
+                }
+                const id = el.shopId?.value || '';
+                try {
+                    await upsertShop(id ? 'Update' : 'Create', id || null, payload);
+                    bootstrap.Modal.getInstance(el.shopModal)?.hide();
+                    loadShops(id ? state.shopsPage : 1);
+                } catch (err) {
+                    console.error('saveShop failed', err);
+                }
+            });
 
             // 事件與初始化
             el.btnSearchItems?.addEventListener('click', () => loadItems(1));
             el.btnSearchCombos?.addEventListener('click', () => loadCombos(1));
             el.btnSearchTables?.addEventListener('click', () => loadTables(1));
-            el.toggleDemo?.addEventListener('click', () => { state.demo = !state.demo; showDemoBanner(state.demo); if (state.demo) { toast('切至 Demo 模式'); } loadItems(); loadCombos(); loadTables(); });
+            el.btnSearchShops?.addEventListener('click', () => loadShops(1));
+            el.toggleDemo?.addEventListener('click', () => { state.demo = !state.demo; showDemoBanner(state.demo); if (state.demo) { toast('切至 Demo 模式'); } loadItems(); loadCombos(); loadTables(); loadShops(); });
 
             document.getElementById('apiBaseText').textContent = apiBase || '(同網域)';
 
@@ -854,7 +1180,7 @@
             });
 
             // 初始載入
-            loadItems(); loadCombos(); loadTables();
+            loadItems(); loadCombos(); loadTables(); loadShops();
         })();
     </script>
 </body>
