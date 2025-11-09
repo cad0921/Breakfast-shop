@@ -277,7 +277,7 @@
                     <div class="table-responsive">
                         <table class="table align-middle table-bordered">
                             <thead>
-                                <tr><th>#</th><th>店名</th><th>電話</th><th>地址</th><th>狀態</th><th>操作</th></tr>
+                                <tr><th>#</th><th>店名</th><th>電話</th><th>帳號</th><th>地址</th><th>狀態</th><th>操作</th></tr>
                             </thead>
                             <tbody id="shopsBody"></tbody>
                         </table>
@@ -372,7 +372,7 @@
                         <div class="col-12">
                             <label class="form-label">套餐內容</label>
                             <div class="d-flex gap-2">
-                                <select id="comboItemSelect" class="form-select" style="max-width:380px"></select>
+                                <select id="comboItemSelect" class="form-select" multiple size="6" style="max-width:380px"></select>
                                 <input id="comboItemQty" type="number" min="1" step="1" value="1" class="form-control" style="max-width:120px" />
                                 <button class="btn btn-outline-secondary" id="addComboLine" type="button">加入</button>
                             </div>
@@ -441,6 +441,14 @@
                             <label class="form-label">電話</label>
                             <input id="shopPhone" class="form-control" />
                         </div>
+                        <div class="col-md-6">
+                            <label class="form-label">帳號</label>
+                            <input id="shopAccount" class="form-control" autocomplete="username" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">密碼</label>
+                            <input id="shopPassword" type="password" class="form-control" autocomplete="new-password" />
+                        </div>
                         <div class="col-12">
                             <label class="form-label">地址</label>
                             <input id="shopAddr" class="form-control" />
@@ -497,7 +505,7 @@
                 comboLines: document.getElementById('comboLines'), // 用 getElementById，避免 querySelector 時機問題
                 saveCombo: $('#saveCombo'),
                 tableModal: $('#tableModal'), tableForm: $('#tableForm'), tableId: $('#tableId'), tableCode: $('#tableCode'), tableZone: $('#tableZone'), tableActive: $('#tableActive'), saveTable: $('#saveTable'),
-                shopModal: $('#shopModal'), shopForm: $('#shopForm'), shopId: $('#shopId'), shopName: $('#shopName'), shopPhone: $('#shopPhone'), shopAddr: $('#shopAddr'), shopActive: $('#shopActive'), saveShop: $('#saveShop'),
+                shopModal: $('#shopModal'), shopForm: $('#shopForm'), shopId: $('#shopId'), shopName: $('#shopName'), shopPhone: $('#shopPhone'), shopAccount: $('#shopAccount'), shopPassword: $('#shopPassword'), shopAddr: $('#shopAddr'), shopActive: $('#shopActive'), saveShop: $('#saveShop'),
                 toggleDemo: $('#toggleDemo'),
             };
 
@@ -561,8 +569,8 @@
                 if (path.startsWith('/api/shops')) {
                     if (!state.shops.length) {
                         state.shops = [
-                            { id: 1, name: '亮亮早餐 總店', phone: '02-1234-5678', addr: '台北市信義區中正路 1 號', isActive: true },
-                            { id: 2, name: '亮亮早餐 板橋店', phone: '02-8765-4321', addr: '新北市板橋區文化路 100 號', isActive: false },
+                            { id: 1, name: '亮亮早餐 總店', phone: '02-1234-5678', account: 'demo-shop', password: 'demo123', addr: '台北市信義區中正路 1 號', isActive: true },
+                            { id: 2, name: '亮亮早餐 板橋店', phone: '02-8765-4321', account: 'branch-shop', password: 'demo456', addr: '新北市板橋區文化路 100 號', isActive: false },
                         ];
                     }
                     return paginateLocal(state.shops, getQuery(path));
@@ -578,7 +586,7 @@
                 if (q.keyword) {
                     list = list.filter(x => {
                         const key = q.keyword;
-                        return [x.name, x.code, x.zone, x.phone, x.addr, x.shopName].some(val => (val || '').includes(key));
+                        return [x.name, x.code, x.zone, x.phone, x.account, x.addr, x.shopName].some(val => (val || '').includes(key));
                     });
                 }
                 if (q.active !== undefined && q.active !== '') {
@@ -771,10 +779,14 @@
 
             // ========== Combo ==========
             function renderComboItemSelect() {
-                el.comboItemSelect.innerHTML = '<option value="">選擇餐點…</option>' + state.allItemsForCombo.map(m => {
+                if (!el.comboItemSelect) return;
+                const options = ['<option value="" disabled>選擇餐點（可多選）…</option>'];
+                state.allItemsForCombo.forEach(m => {
                     const shopLabel = m.shopName ? ` - ${m.shopName}` : '';
-                    return `<option value="${m.id}">${m.name} ($${m.price})${shopLabel}</option>`;
-                }).join('');
+                    options.push(`<option value="${m.id}">${m.name} ($${m.price})${shopLabel}</option>`);
+                });
+                el.comboItemSelect.innerHTML = options.join('');
+                Array.from(el.comboItemSelect.options).forEach(opt => { opt.selected = false; });
             }
             async function loadCombos(page = 1) {
                 try {
@@ -877,18 +889,29 @@
                 });
             }
             el.addComboLine?.addEventListener('click', () => {
-                if (!el.comboLines) return;
-                const id = parseInt(el.comboItemSelect.value || '0');
+                if (!el.comboLines || !el.comboItemSelect) return;
                 const qty = Math.max(1, parseInt(el.comboItemQty.value || '1'));
-                if (!id) return;
-                const found = state.allItemsForCombo.find(m => String(m.id) === String(id));
-                if (!found) return;
-                const tr = document.createElement('tr');
-                tr.dataset.menuId = id;
-                tr.innerHTML = `<td>${found.name}</td>
+                const selected = Array.from(el.comboItemSelect.selectedOptions || []).filter(opt => opt.value);
+                if (!selected.length) return;
+                selected.forEach(opt => {
+                    const id = parseInt(opt.value, 10);
+                    if (!id) return;
+                    const found = state.allItemsForCombo.find(m => String(m.id) === String(id));
+                    if (!found) return;
+                    let tr = el.comboLines.querySelector(`tr[data-menu-id="${id}"]`);
+                    if (!tr) {
+                        tr = document.createElement('tr');
+                        tr.dataset.menuId = id;
+                        tr.innerHTML = `<td>${found.name}</td>
                             <td style="width:120px"><input class="form-control form-control-sm" type="number" min="1" step="1" value="${qty}" /></td>
                             <td style="width:100px"><button class="btn btn-sm btn-outline-danger" data-act="rm-line">移除</button></td>`;
-                el.comboLines.appendChild(tr);
+                        el.comboLines.appendChild(tr);
+                    } else {
+                        const input = tr.querySelector('input');
+                        if (input) input.value = qty;
+                    }
+                });
+                Array.from(el.comboItemSelect.options).forEach(opt => opt.selected = false);
                 bindComboLineEvents();
             });
             el.saveCombo?.addEventListener('click', async e => {
@@ -899,6 +922,10 @@
                     isActive: el.comboActive ? el.comboActive.checked : true,
                     items: $all('#comboLines tr').map(tr => ({ menuItemId: parseInt(tr.dataset.menuId), quantity: Math.max(1, parseInt(tr.querySelector('input').value || '1')) }))
                 };
+                if (!payload.items.length) {
+                    toast('請至少加入一個餐點');
+                    return;
+                }
                 const id = el.comboId.value || '';
                 await upsertCombo(id ? 'PUT' : 'POST', id || null, payload);
                 bootstrap.Modal.getInstance(el.comboModal)?.hide(); loadCombos(state.combosPage);
@@ -1094,6 +1121,8 @@
                         id: r.Id,
                         name: r.Name || '',
                         phone: r.Phone || '',
+                        account: r.Account || '',
+                        password: r.Password || '',
                         addr: r.Addr || '',
                         isActive: !!r.IsActive
                     }));
@@ -1101,7 +1130,7 @@
                     renderItemShopOptions(el.itemShopId?.value || '');
 
                     const kw = (el.kwShops?.value || '').trim();
-                    let filtered = kw ? mapped.filter(x => [x.name, x.phone, x.addr].some(v => (v || '').includes(kw))) : mapped;
+                    let filtered = kw ? mapped.filter(x => [x.name, x.phone, x.account, x.addr].some(v => (v || '').includes(kw))) : mapped;
                     const actVal = el.activeShops?.value;
                     if (actVal !== undefined && actVal !== '') {
                         const flag = actVal === 'true';
@@ -1135,6 +1164,7 @@
                 <td>${s.id}</td>
                 <td>${s.name}</td>
                 <td>${s.phone || ''}</td>
+                <td>${s.account || ''}</td>
                 <td>${s.addr || ''}</td>
                 <td>${tag(!!s.isActive, '啟用', '停用')}</td>
                 <td>
@@ -1164,6 +1194,8 @@
                 el.shopId.value = shop?.id || '';
                 el.shopName.value = shop?.name || '';
                 el.shopPhone.value = shop?.phone || '';
+                if (el.shopAccount) el.shopAccount.value = shop?.account || '';
+                if (el.shopPassword) el.shopPassword.value = shop?.password || '';
                 el.shopAddr.value = shop?.addr || '';
                 el.shopActive.checked = (shop?.isActive ?? true);
                 new bootstrap.Modal(el.shopModal).show();
@@ -1176,6 +1208,8 @@
                     form.append('model.Id', id || '');
                     form.append('model.Name', payload.name || '');
                     form.append('model.Phone', payload.phone || '');
+                    form.append('model.Account', payload.account || '');
+                    form.append('model.Password', payload.password || '');
                     form.append('model.Addr', payload.addr || '');
                     form.append('model.IsActive', payload.isActive ? 'true' : 'false');
                     const res = await fetch('/Home/UpdateShop', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }, body: form.toString() });
@@ -1215,6 +1249,8 @@
                 const payload = {
                     name: (el.shopName?.value || '').trim(),
                     phone: (el.shopPhone?.value || '').trim(),
+                    account: (el.shopAccount?.value || '').trim(),
+                    password: (el.shopPassword?.value || '').trim(),
                     addr: (el.shopAddr?.value || '').trim(),
                     isActive: el.shopActive?.checked ?? true
                 };
