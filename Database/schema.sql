@@ -4,6 +4,14 @@ GO
 /* ============================
    Drop existing constraints
    ============================ */
+IF OBJECT_ID(N'dbo.FK_OrderItems_Order', N'F') IS NOT NULL
+    ALTER TABLE dbo.OrderItems DROP CONSTRAINT FK_OrderItems_Order;
+IF OBJECT_ID(N'dbo.FK_OrderItems_Meal', N'F') IS NOT NULL
+    ALTER TABLE dbo.OrderItems DROP CONSTRAINT FK_OrderItems_Meal;
+IF OBJECT_ID(N'dbo.FK_Orders_Shop', N'F') IS NOT NULL
+    ALTER TABLE dbo.Orders DROP CONSTRAINT FK_Orders_Shop;
+IF OBJECT_ID(N'dbo.FK_Orders_Table', N'F') IS NOT NULL
+    ALTER TABLE dbo.Orders DROP CONSTRAINT FK_Orders_Table;
 IF OBJECT_ID(N'dbo.FK_Meals_Shop', N'F') IS NOT NULL
     ALTER TABLE dbo.Meals DROP CONSTRAINT FK_Meals_Shop;
 IF OBJECT_ID(N'dbo.FK_Meals_Category', N'F') IS NOT NULL
@@ -17,6 +25,8 @@ GO
 /* ============================
    Drop tables in dependency order
    ============================ */
+IF OBJECT_ID(N'dbo.OrderItems', N'U') IS NOT NULL DROP TABLE dbo.OrderItems;
+IF OBJECT_ID(N'dbo.Orders', N'U') IS NOT NULL DROP TABLE dbo.Orders;
 IF OBJECT_ID(N'dbo.Meals', N'U') IS NOT NULL DROP TABLE dbo.Meals;
 IF OBJECT_ID(N'dbo.Combo', N'U') IS NOT NULL DROP TABLE dbo.Combo;
 IF OBJECT_ID(N'dbo.[Table]', N'U') IS NOT NULL DROP TABLE dbo.[Table];
@@ -138,6 +148,58 @@ CREATE INDEX IX_Table_Shop ON dbo.[Table] (ShopId) INCLUDE (IsActive, Number);
 GO
 
 /* ============================
+   Orders
+   ============================ */
+CREATE TABLE dbo.Orders
+(
+    Id          UNIQUEIDENTIFIER NOT NULL CONSTRAINT DF_Orders_Id DEFAULT (NEWID()),
+    ShopId      UNIQUEIDENTIFIER NULL,
+    OrderType   NVARCHAR(20)     NOT NULL,
+    TableId     UNIQUEIDENTIFIER NULL,
+    TakeoutCode NVARCHAR(20)     NULL,
+    Notes       NVARCHAR(500)    NULL,
+    Status      NVARCHAR(20)     NOT NULL,
+    CreatedAt   DATETIME2(0)     NOT NULL CONSTRAINT DF_Orders_CreatedAt DEFAULT (GETDATE()),
+    UpdatedAt   DATETIME2(0)     NOT NULL CONSTRAINT DF_Orders_UpdatedAt DEFAULT (GETDATE()),
+    CONSTRAINT PK_Orders PRIMARY KEY (Id),
+    -- 直接在 Shop 上避免採用級聯，以免與 Table → Orders 的 SET NULL 產生多重路徑
+    CONSTRAINT FK_Orders_Shop FOREIGN KEY (ShopId)
+        REFERENCES dbo.Shop (Id) ON DELETE NO ACTION ON UPDATE NO ACTION,
+    CONSTRAINT FK_Orders_Table FOREIGN KEY (TableId)
+        REFERENCES dbo.[Table] (Id) ON DELETE SET NULL ON UPDATE NO ACTION,
+    CONSTRAINT CK_Orders_OrderType CHECK (OrderType IN (N'DineIn', N'TakeOut')),
+    CONSTRAINT CK_Orders_Status CHECK (Status IN (N'Pending', N'Preparing', N'Completed', N'Cancelled'))
+);
+CREATE UNIQUE INDEX IX_Orders_TakeoutCode ON dbo.Orders (TakeoutCode) WHERE TakeoutCode IS NOT NULL;
+CREATE INDEX IX_Orders_Status_CreatedAt ON dbo.Orders (Status, CreatedAt);
+GO
+
+/* ============================
+   OrderItems
+   ============================ */
+CREATE TABLE dbo.OrderItems
+(
+    Id         UNIQUEIDENTIFIER NOT NULL CONSTRAINT DF_OrderItems_Id DEFAULT (NEWID()),
+    OrderId    UNIQUEIDENTIFIER NOT NULL,
+    MealId     UNIQUEIDENTIFIER NOT NULL,
+    MealName   NVARCHAR(100)    NOT NULL,
+    Quantity   INT              NOT NULL,
+    UnitPrice  DECIMAL(10,2)    NOT NULL CONSTRAINT DF_OrderItems_UnitPrice DEFAULT (0),
+    Notes      NVARCHAR(200)    NULL,
+    CreateDate DATETIME2(0)     NOT NULL CONSTRAINT DF_OrderItems_CreateDate DEFAULT (GETDATE()),
+    CONSTRAINT PK_OrderItems PRIMARY KEY (Id),
+    CONSTRAINT FK_OrderItems_Order FOREIGN KEY (OrderId)
+        REFERENCES dbo.Orders (Id) ON DELETE CASCADE,
+    CONSTRAINT FK_OrderItems_Meal FOREIGN KEY (MealId)
+        REFERENCES dbo.Meals (Id) ON DELETE NO ACTION,
+    CONSTRAINT CK_OrderItems_Quantity CHECK (Quantity > 0),
+    CONSTRAINT CK_OrderItems_UnitPrice CHECK (UnitPrice >= 0)
+);
+CREATE INDEX IX_OrderItems_Order ON dbo.OrderItems (OrderId) INCLUDE (CreateDate);
+CREATE INDEX IX_OrderItems_Meal ON dbo.OrderItems (MealId);
+GO
+
+/* ============================
    AFTER DELETE 觸發器：刪 Shop 後，清掉該店的分類
    （避免多重串聯路徑，但保有原本業務語意）
    ============================ */
@@ -215,5 +277,17 @@ BEGIN
     UPDATE t SET UpdateDate = GETDATE()
     FROM dbo.[Table] AS t
     INNER JOIN inserted AS i ON t.Id = i.Id;
+END;
+GO
+
+CREATE OR ALTER TRIGGER TR_Orders_SetUpdatedAt
+ON dbo.Orders
+AFTER UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE o SET UpdatedAt = GETDATE()
+    FROM dbo.Orders AS o
+    INNER JOIN inserted AS i ON o.Id = i.Id;
 END;
 GO
