@@ -45,7 +45,9 @@ namespace breakfastshop.Controllers
 
         public ActionResult Index() { return View(); }
         public ActionResult Backstage() { return View(); }
-
+        public ActionResult Order() {
+            return View();
+        }
         public ActionResult Login()
         {
             return View();
