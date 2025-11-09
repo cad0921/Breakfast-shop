@@ -1,33 +1,341 @@
-﻿@{
-    ViewBag.Title = "Home Page";
+@{
+    ViewBag.Title = "線上點餐";
 }
 
-<main>
-    <section class="row" aria-labelledby="aspnetTitle">
-        <h1 id="title">ASP.NET</h1>
-        <p class="lead">ASP.NET is a free web framework for building great Web sites and Web applications using HTML, CSS and JavaScript.</p>
-        <p><a href="https://asp.net" class="btn btn-primary btn-md">Learn more &raquo;</a></p>
+<main class="order-page">
+    <section class="order-hero rounded-4 shadow-sm mb-4 p-4 p-md-5 text-center text-md-start bg-gradient">
+        <div class="row align-items-center g-4">
+            <div class="col-md-7">
+                <p class="text-uppercase text-muted mb-2 small fw-semibold">早餐店</p>
+                <h1 class="display-6 fw-bold mb-3">現點現做，活力滿滿的早晨</h1>
+                <p class="lead mb-4">
+                    精選吐司、漢堡、捲餅與飲品一次搞定。選擇喜歡的餐點加入購物車，無論手機或電腦，都能輕鬆完成點餐。
+                </p>
+                <div class="d-flex flex-wrap gap-2 justify-content-center justify-content-md-start">
+                    <span class="badge rounded-pill text-bg-light px-3 py-2">每日新鮮食材</span>
+                    <span class="badge rounded-pill text-bg-light px-3 py-2">10 分鐘即可取餐</span>
+                    <span class="badge rounded-pill text-bg-light px-3 py-2">線上即時更新</span>
+                </div>
+            </div>
+            <div class="col-md-5">
+                <div class="order-hero-card position-relative overflow-hidden rounded-4 text-start p-4">
+                    <h2 class="h4 fw-bold mb-3">今日人氣套餐</h2>
+                    <ul class="list-unstyled mb-4 small">
+                        <li class="d-flex align-items-center mb-2">
+                            <span class="order-dot me-2"></span>
+                            <span class="flex-grow-1">培根蛋總匯吐司</span>
+                            <span class="fw-semibold">NT$75</span>
+                        </li>
+                        <li class="d-flex align-items-center mb-2">
+                            <span class="order-dot me-2"></span>
+                            <span class="flex-grow-1">薯餅蛋漢堡</span>
+                            <span class="fw-semibold">NT$65</span>
+                        </li>
+                        <li class="d-flex align-items-center">
+                            <span class="order-dot me-2"></span>
+                            <span class="flex-grow-1">冰拿鐵 (中)</span>
+                            <span class="fw-semibold">NT$45</span>
+                        </li>
+                    </ul>
+                    <p class="mb-0 text-muted small">現在點餐，享自取優惠飲品加價購。</p>
+                </div>
+            </div>
+        </div>
     </section>
 
-    <div class="row">
-        <section class="col-md-4" aria-labelledby="gettingStartedTitle">
-            <h2 id="gettingStartedTitle">Getting started</h2>
-            <p>
-                ASP.NET MVC gives you a powerful, patterns-based way to build dynamic websites that
-                enables a clean separation of concerns and gives you full control over markup
-                for enjoyable, agile development.
-            </p>
-            <p><a class="btn btn-outline-dark" href="https://go.microsoft.com/fwlink/?LinkId=301865">Learn more &raquo;</a></p>
+    <div class="order-layout row g-4">
+        <aside class="col-12 col-lg-3">
+            <div class="card h-100 shadow-sm category-panel">
+                <div class="card-body">
+                    <h2 class="h5 fw-bold mb-3">選擇分類</h2>
+                    <p class="text-muted small mb-3">快速找到想吃的品項，點選分類即可篩選菜單。</p>
+                    <div class="category-list" role="tablist" aria-label="餐點分類">
+                        <button type="button" class="btn btn-outline-primary active" data-category-filter="all">全部餐點</button>
+                        <button type="button" class="btn btn-outline-primary" data-category-filter="toast">吐司</button>
+                        <button type="button" class="btn btn-outline-primary" data-category-filter="burger">漢堡</button>
+                        <button type="button" class="btn btn-outline-primary" data-category-filter="wrap">捲餅</button>
+                        <button type="button" class="btn btn-outline-primary" data-category-filter="drink">飲品</button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <section class="col-12 col-lg-6">
+            <h2 class="h4 fw-bold mb-3">人氣餐點</h2>
+            <div class="menu-items row g-3">
+                <div class="col-12 col-sm-6" data-category="toast">
+                    <article class="card menu-card h-100 shadow-sm" data-item="鮪魚蛋吐司" data-price="55">
+                        <div class="card-body d-flex flex-column">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h3 class="h5 mb-0">鮪魚蛋吐司</h3>
+                                <span class="badge text-bg-primary">NT$55</span>
+                            </div>
+                            <p class="text-muted small flex-grow-1">香濃鮪魚搭配手打蛋沙拉，清爽又有飽足感。</p>
+                            <div class="d-flex justify-content-between align-items-center mt-3">
+                                <div class="quantity-control" aria-label="鮪魚蛋吐司數量">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm qty-decrease" aria-label="減少數量">−</button>
+                                    <span class="quantity-count" aria-live="polite" aria-atomic="true">0</span>
+                                    <button type="button" class="btn btn-primary btn-sm qty-increase" aria-label="增加數量">＋</button>
+                                </div>
+                                <span class="text-muted small">熱銷推薦</span>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+                <div class="col-12 col-sm-6" data-category="toast">
+                    <article class="card menu-card h-100 shadow-sm" data-item="厚切豬排吐司" data-price="70">
+                        <div class="card-body d-flex flex-column">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h3 class="h5 mb-0">厚切豬排吐司</h3>
+                                <span class="badge text-bg-primary">NT$70</span>
+                            </div>
+                            <p class="text-muted small flex-grow-1">現炸豬排配上特製胡麻醬，香氣十足。</p>
+                            <div class="d-flex justify-content-between align-items-center mt-3">
+                                <div class="quantity-control" aria-label="厚切豬排吐司數量">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm qty-decrease" aria-label="減少數量">−</button>
+                                    <span class="quantity-count" aria-live="polite" aria-atomic="true">0</span>
+                                    <button type="button" class="btn btn-primary btn-sm qty-increase" aria-label="增加數量">＋</button>
+                                </div>
+                                <span class="text-muted small">限量供應</span>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+                <div class="col-12 col-sm-6" data-category="burger">
+                    <article class="card menu-card h-100 shadow-sm" data-item="薯餅蛋漢堡" data-price="65">
+                        <div class="card-body d-flex flex-column">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h3 class="h5 mb-0">薯餅蛋漢堡</h3>
+                                <span class="badge text-bg-primary">NT$65</span>
+                            </div>
+                            <p class="text-muted small flex-grow-1">酥脆薯餅與半熟蛋的完美搭配，人氣早餐首選。</p>
+                            <div class="d-flex justify-content-between align-items-center mt-3">
+                                <div class="quantity-control" aria-label="薯餅蛋漢堡數量">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm qty-decrease" aria-label="減少數量">−</button>
+                                    <span class="quantity-count" aria-live="polite" aria-atomic="true">0</span>
+                                    <button type="button" class="btn btn-primary btn-sm qty-increase" aria-label="增加數量">＋</button>
+                                </div>
+                                <span class="text-muted small">含起司</span>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+                <div class="col-12 col-sm-6" data-category="burger">
+                    <article class="card menu-card h-100 shadow-sm" data-item="花生培根漢堡" data-price="72">
+                        <div class="card-body d-flex flex-column">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h3 class="h5 mb-0">花生培根漢堡</h3>
+                                <span class="badge text-bg-primary">NT$72</span>
+                            </div>
+                            <p class="text-muted small flex-grow-1">香濃花生醬遇上酥脆培根，鹹甜交織。</p>
+                            <div class="d-flex justify-content-between align-items-center mt-3">
+                                <div class="quantity-control" aria-label="花生培根漢堡數量">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm qty-decrease" aria-label="減少數量">−</button>
+                                    <span class="quantity-count" aria-live="polite" aria-atomic="true">0</span>
+                                    <button type="button" class="btn btn-primary btn-sm qty-increase" aria-label="增加數量">＋</button>
+                                </div>
+                                <span class="text-muted small">招牌口味</span>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+                <div class="col-12 col-sm-6" data-category="wrap">
+                    <article class="card menu-card h-100 shadow-sm" data-item="起司蛋餅" data-price="45">
+                        <div class="card-body d-flex flex-column">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h3 class="h5 mb-0">起司蛋餅</h3>
+                                <span class="badge text-bg-primary">NT$45</span>
+                            </div>
+                            <p class="text-muted small flex-grow-1">外酥內軟的蛋餅皮包覆濃郁起司，香氣滿分。</p>
+                            <div class="d-flex justify-content-between align-items-center mt-3">
+                                <div class="quantity-control" aria-label="起司蛋餅數量">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm qty-decrease" aria-label="減少數量">−</button>
+                                    <span class="quantity-count" aria-live="polite" aria-atomic="true">0</span>
+                                    <button type="button" class="btn btn-primary btn-sm qty-increase" aria-label="增加數量">＋</button>
+                                </div>
+                                <span class="text-muted small">酥脆口感</span>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+                <div class="col-12 col-sm-6" data-category="wrap">
+                    <article class="card menu-card h-100 shadow-sm" data-item="鮮蔬雞肉捲餅" data-price="68">
+                        <div class="card-body d-flex flex-column">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h3 class="h5 mb-0">鮮蔬雞肉捲餅</h3>
+                                <span class="badge text-bg-primary">NT$68</span>
+                            </div>
+                            <p class="text-muted small flex-grow-1">嫩煎雞胸與清爽生菜，輕盈無負擔。</p>
+                            <div class="d-flex justify-content-between align-items-center mt-3">
+                                <div class="quantity-control" aria-label="鮮蔬雞肉捲餅數量">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm qty-decrease" aria-label="減少數量">−</button>
+                                    <span class="quantity-count" aria-live="polite" aria-atomic="true">0</span>
+                                    <button type="button" class="btn btn-primary btn-sm qty-increase" aria-label="增加數量">＋</button>
+                                </div>
+                                <span class="text-muted small">清爽首選</span>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+                <div class="col-12 col-sm-6" data-category="drink">
+                    <article class="card menu-card h-100 shadow-sm" data-item="冰拿鐵 (中)" data-price="45">
+                        <div class="card-body d-flex flex-column">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h3 class="h5 mb-0">冰拿鐵 (中)</h3>
+                                <span class="badge text-bg-primary">NT$45</span>
+                            </div>
+                            <p class="text-muted small flex-grow-1">嚴選咖啡豆冷萃萃取，清爽順口。</p>
+                            <div class="d-flex justify-content-between align-items-center mt-3">
+                                <div class="quantity-control" aria-label="冰拿鐵數量">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm qty-decrease" aria-label="減少數量">−</button>
+                                    <span class="quantity-count" aria-live="polite" aria-atomic="true">0</span>
+                                    <button type="button" class="btn btn-primary btn-sm qty-increase" aria-label="增加數量">＋</button>
+                                </div>
+                                <span class="text-muted small">咖啡豆原味</span>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+                <div class="col-12 col-sm-6" data-category="drink">
+                    <article class="card menu-card h-100 shadow-sm" data-item="招牌鮮奶茶" data-price="40">
+                        <div class="card-body d-flex flex-column">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h3 class="h5 mb-0">招牌鮮奶茶</h3>
+                                <span class="badge text-bg-primary">NT$40</span>
+                            </div>
+                            <p class="text-muted small flex-grow-1">錫蘭紅茶搭配鮮奶，香醇濃郁。</p>
+                            <div class="d-flex justify-content-between align-items-center mt-3">
+                                <div class="quantity-control" aria-label="招牌鮮奶茶數量">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm qty-decrease" aria-label="減少數量">−</button>
+                                    <span class="quantity-count" aria-live="polite" aria-atomic="true">0</span>
+                                    <button type="button" class="btn btn-primary btn-sm qty-increase" aria-label="增加數量">＋</button>
+                                </div>
+                                <span class="text-muted small">暖心飲品</span>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+            </div>
         </section>
-        <section class="col-md-4" aria-labelledby="librariesTitle">
-            <h2 id="librariesTitle">Get more libraries</h2>
-            <p>NuGet is a free Visual Studio extension that makes it easy to add, remove, and update libraries and tools in Visual Studio projects.</p>
-            <p><a class="btn btn-outline-dark" href="https://go.microsoft.com/fwlink/?LinkId=301866">Learn more &raquo;</a></p>
-        </section>
-        <section class="col-md-4" aria-labelledby="hostingTitle">
-            <h2 id="hostingTitle">Web Hosting</h2>
-            <p>You can easily find a web hosting company that offers the right mix of features and price for your applications.</p>
-            <p><a class="btn btn-outline-dark" href="https://go.microsoft.com/fwlink/?LinkId=301867">Learn more &raquo;</a></p>
-        </section>
+
+        <aside class="col-12 col-lg-3">
+            <div class="card h-100 shadow-sm cart-card sticky-lg-top">
+                <div class="card-body d-flex flex-column">
+                    <h2 class="h5 fw-bold mb-3">購物車</h2>
+                    <ul class="list-unstyled flex-grow-1 cart-items mb-3"></ul>
+                    <div class="border-top pt-3 mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fw-semibold">總金額</span>
+                            <span class="order-total fw-bold">NT$0</span>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-primary w-100 cart-checkout" disabled>送出訂單</button>
+                    <p class="text-muted small mb-0 mt-3">完成點餐後，請於門市出示手機畫面或報出訂單編號即可。</p>
+                </div>
+            </div>
+        </aside>
     </div>
 </main>
+
+@section scripts {
+    <script>
+        (function () {
+            const menuCards = document.querySelectorAll('.menu-card');
+            const cartItemsContainer = document.querySelector('.cart-items');
+            const totalElement = document.querySelector('.order-total');
+            const checkoutButton = document.querySelector('.cart-checkout');
+            const categoryButtons = document.querySelectorAll('[data-category-filter]');
+            const order = new Map();
+
+            function formatCurrency(amount) {
+                return `NT$${amount}`;
+            }
+
+            function renderCart() {
+                cartItemsContainer.innerHTML = '';
+                let total = 0;
+
+                if (order.size === 0) {
+                    cartItemsContainer.innerHTML = '<li class="text-muted small">尚未選擇餐點</li>';
+                    totalElement.textContent = formatCurrency(0);
+                    checkoutButton.disabled = true;
+                    return;
+                }
+
+                order.forEach((item, name) => {
+                    const itemTotal = item.price * item.quantity;
+                    total += itemTotal;
+
+                    const listItem = document.createElement('li');
+                    listItem.className = 'cart-item d-flex justify-content-between align-items-center mb-2';
+                    listItem.innerHTML = `
+                        <div>
+                            <span class="fw-semibold">${name}</span>
+                            <div class="text-muted small">x${item.quantity} · NT$${item.price}</div>
+                        </div>
+                        <span class="fw-semibold">NT$${itemTotal}</span>
+                    `;
+                    cartItemsContainer.appendChild(listItem);
+                });
+
+                totalElement.textContent = formatCurrency(total);
+                checkoutButton.disabled = false;
+            }
+
+            function updateItem(card, delta) {
+                const name = card.dataset.item;
+                const price = Number(card.dataset.price);
+                const current = order.get(name) || { price, quantity: 0 };
+                const newQuantity = Math.max(0, current.quantity + delta);
+                const counter = card.querySelector('.quantity-count');
+
+                if (newQuantity === 0) {
+                    order.delete(name);
+                    card.classList.remove('in-cart');
+                } else {
+                    order.set(name, { price, quantity: newQuantity });
+                    card.classList.add('in-cart');
+                }
+
+                counter.textContent = newQuantity;
+                renderCart();
+            }
+
+            menuCards.forEach(card => {
+                const increaseButton = card.querySelector('.qty-increase');
+                const decreaseButton = card.querySelector('.qty-decrease');
+
+                increaseButton.addEventListener('click', () => updateItem(card, 1));
+                decreaseButton.addEventListener('click', () => updateItem(card, -1));
+            });
+
+            categoryButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    categoryButtons.forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+
+                    const category = button.getAttribute('data-category-filter');
+
+                    document.querySelectorAll('.menu-items > div').forEach(wrapper => {
+                        const isMatch = category === 'all' || wrapper.dataset.category === category;
+                        wrapper.classList.toggle('d-none', !isMatch);
+                    });
+                });
+            });
+
+            checkoutButton.addEventListener('click', () => {
+                if (order.size === 0) {
+                    return;
+                }
+
+                const summary = Array.from(order.entries())
+                    .map(([name, item]) => `${name} x${item.quantity}`)
+                    .join('\n');
+
+                alert(`您的餐點:\n${summary}\n總金額：${totalElement.textContent}`);
+            });
+
+            renderCart();
+        })();
+    </script>
+}
