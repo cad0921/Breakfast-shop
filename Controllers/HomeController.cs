@@ -209,7 +209,7 @@ namespace breakfastshop.Controllers
                 if (dt.Rows.Count > 0)
                 {
                     var row = dt.Rows[0];
-                    var tableId = (Guid)row["Id"];
+                    var resolvedTableId = (Guid)row["Id"];
                     Guid? shopId = row["ShopId"] == DBNull.Value ? (Guid?)null : (Guid)row["ShopId"];
                     int? number = row["Number"] == DBNull.Value ? (int?)null : Convert.ToInt32(row["Number"]);
                     string zone = row["Zone"] == DBNull.Value ? null : row["Zone"].ToString();
@@ -217,7 +217,7 @@ namespace breakfastshop.Controllers
 
                     presetTable = new PresetTableViewModel
                     {
-                        Id = tableId.ToString(),
+                        Id = resolvedTableId.ToString(),
                         ShopId = shopId?.ToString(),
                         Number = number,
                         Zone = zone,
