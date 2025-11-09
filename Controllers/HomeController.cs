@@ -353,6 +353,7 @@ namespace breakfastshop.Controllers
     {
         public Guid Id { get; set; }
         public Guid ShopId { get; set; }
+        public string Name { get; set; } 
         public string ComboMeal { get; set; }
         public decimal? Money { get; set; }
         public bool? IsActive { get; set; }
