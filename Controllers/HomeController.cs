@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Data;
+using System.Data.SqlClient;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Web.Mvc;
@@ -16,6 +19,8 @@ namespace breakfastshop.Controllers
         // 預設管理員密碼：Breakfast@2024（以 SHA-256 儲存）
         private const string AdminPasswordHash = "c881fa2020986c9ce4315e8fb5b91c54c4627ad01115b2a56b11d4dba17a5507";
         private static readonly Guid AdminId = Guid.Empty;
+        private static readonly string[] AllowedOrderStatuses = { "Pending", "Preparing", "Completed", "Cancelled" };
+        private static readonly char[] TakeoutCodeCharacters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".ToCharArray();
 
         private static bool IsAdminAccount(string account)
         {
@@ -43,6 +48,127 @@ namespace breakfastshop.Controllers
             }
         }
 
+        private static string NormalizeOrderType(string orderType)
+        {
+            if (string.IsNullOrWhiteSpace(orderType)) return null;
+            if (string.Equals(orderType, "DineIn", StringComparison.OrdinalIgnoreCase)) return "DineIn";
+            if (string.Equals(orderType, "TakeOut", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(orderType, "Takeaway", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(orderType, "ToGo", StringComparison.OrdinalIgnoreCase))
+                return "TakeOut";
+            if (string.Equals(orderType, "內用", StringComparison.OrdinalIgnoreCase)) return "DineIn";
+            if (string.Equals(orderType, "外帶", StringComparison.OrdinalIgnoreCase)) return "TakeOut";
+            return null;
+        }
+
+        private static string NormalizeOrderStatus(string status)
+        {
+            if (string.IsNullOrWhiteSpace(status))
+                throw new ArgumentException("狀態不可為空");
+
+            foreach (var allowed in AllowedOrderStatuses)
+            {
+                if (string.Equals(status, allowed, StringComparison.OrdinalIgnoreCase))
+                    return allowed;
+            }
+
+            throw new ArgumentException("不支援的訂單狀態");
+        }
+
+        private static string NormalizeOrderStatusForFilter(string status)
+        {
+            if (string.IsNullOrWhiteSpace(status) ||
+                string.Equals(status, "All", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(status, "全部", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            return NormalizeOrderStatus(status);
+        }
+
+        private static string GenerateTakeoutCode(RandomNumberGenerator rng)
+        {
+            var buffer = new char[8];
+            var randomBytes = new byte[8];
+            int index = 0;
+            while (index < buffer.Length)
+            {
+                rng.GetBytes(randomBytes);
+                for (int i = 0; i < randomBytes.Length && index < buffer.Length; i++)
+                {
+                    buffer[index++] = TakeoutCodeCharacters[randomBytes[i] % TakeoutCodeCharacters.Length];
+                }
+            }
+
+            return new string(buffer);
+        }
+
+        private string GenerateUniqueTakeoutCode()
+        {
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                for (int attempt = 0; attempt < 10; attempt++)
+                {
+                    string code = GenerateTakeoutCode(rng);
+                    var dt = _db.Query("SELECT TOP 1 1 FROM dbo.Orders WHERE TakeoutCode=@Code", new Dictionary<string, object>
+                    {
+                        ["Code"] = code
+                    });
+
+                    if (dt.Rows.Count == 0)
+                        return code;
+                }
+            }
+
+            throw new InvalidOperationException("無法產生外帶取餐碼，請稍後再試");
+        }
+
+        private int EnsureTableExists(Guid tableId)
+        {
+            var dt = _db.Query("SELECT TOP 1 Number FROM dbo.[Table] WHERE Id=@Id AND IsActive=1", new Dictionary<string, object>
+            {
+                ["Id"] = tableId
+            });
+
+            if (dt.Rows.Count == 0)
+                throw new ArgumentException("找不到指定的桌號");
+
+            return Convert.ToInt32(dt.Rows[0]["Number"]);
+        }
+
+        private Dictionary<Guid, MealSnapshot> LoadMealsSnapshot(IEnumerable<Guid> mealIds)
+        {
+            var ids = mealIds?.Distinct().ToList() ?? new List<Guid>();
+            if (ids.Count == 0) return new Dictionary<Guid, MealSnapshot>();
+
+            var param = new Dictionary<string, object>();
+            var placeholders = new List<string>();
+            for (int i = 0; i < ids.Count; i++)
+            {
+                string key = "M" + i;
+                param[key] = ids[i];
+                placeholders.Add("@" + key);
+            }
+
+            string sql = $"SELECT Id, Name, Money FROM dbo.Meals WHERE Id IN ({string.Join(",", placeholders)})";
+            var dt = _db.Query(sql, param);
+
+            var lookup = new Dictionary<Guid, MealSnapshot>(dt.Rows.Count);
+            foreach (DataRow row in dt.Rows)
+            {
+                var id = (Guid)row["Id"];
+                lookup[id] = new MealSnapshot
+                {
+                    Id = id,
+                    Name = row["Name"]?.ToString() ?? string.Empty,
+                    Price = row["Money"] == DBNull.Value ? 0m : Convert.ToDecimal(row["Money"])
+                };
+            }
+
+            return lookup;
+        }
+
         public ActionResult Index() 
         { 
             return View(); 
@@ -64,6 +190,235 @@ namespace breakfastshop.Controllers
         public ActionResult Login()
         {
             return View();
+        }
+
+        #region Ordering
+        [HttpPost]
+        public JsonResult CreateOrder(CreateOrderRequest request)
+        {
+            try
+            {
+                if (request == null) throw new ArgumentException("缺少訂單資料");
+
+                string orderType = NormalizeOrderType(request.OrderType);
+                if (orderType == null)
+                    throw new ArgumentException("訂單類型僅支援內用或外帶");
+
+                var validItems = (request.Items ?? new List<OrderItemRequest>())
+                    .Where(item => item != null && item.MealId != Guid.Empty && item.Quantity > 0)
+                    .ToList();
+
+                if (validItems.Count == 0)
+                    throw new ArgumentException("請至少選擇一項餐點");
+
+                Guid? tableId = null;
+                int? tableNumber = null;
+                if (string.Equals(orderType, "DineIn", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!request.TableId.HasValue || request.TableId.Value == Guid.Empty)
+                        throw new ArgumentException("內用訂單需選擇桌號");
+
+                    tableNumber = EnsureTableExists(request.TableId.Value);
+                    tableId = request.TableId.Value;
+                }
+
+                var mealLookup = LoadMealsSnapshot(validItems.Select(i => i.MealId));
+                foreach (var item in validItems)
+                {
+                    if (!mealLookup.ContainsKey(item.MealId))
+                        throw new ArgumentException("部分餐點不存在或已下架");
+                }
+
+                string takeoutCode = orderType == "TakeOut" ? GenerateUniqueTakeoutCode() : null;
+                var now = DateTime.UtcNow;
+                Guid orderId = Guid.NewGuid();
+                string notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim();
+                Guid? shopId = request.ShopId.HasValue && request.ShopId.Value != Guid.Empty ? request.ShopId : null;
+
+                using (var conn = _db.CreateConnection())
+                {
+                    conn.Open();
+                    using (var tx = conn.BeginTransaction())
+                    {
+                        using (var cmd = new SqlCommand(@"INSERT INTO dbo.Orders (Id, ShopId, OrderType, TableId, TakeoutCode, Notes, Status, CreatedAt, UpdatedAt)
+VALUES (@Id, @ShopId, @OrderType, @TableId, @TakeoutCode, @Notes, @Status, @CreatedAt, @UpdatedAt);", conn, tx))
+                        {
+                            cmd.Parameters.AddWithValue("@Id", orderId);
+                            cmd.Parameters.AddWithValue("@ShopId", shopId.HasValue ? (object)shopId.Value : DBNull.Value);
+                            cmd.Parameters.AddWithValue("@OrderType", orderType);
+                            cmd.Parameters.AddWithValue("@TableId", tableId.HasValue ? (object)tableId.Value : DBNull.Value);
+                            cmd.Parameters.AddWithValue("@TakeoutCode", string.IsNullOrEmpty(takeoutCode) ? (object)DBNull.Value : takeoutCode);
+                            cmd.Parameters.AddWithValue("@Notes", string.IsNullOrEmpty(notes) ? (object)DBNull.Value : notes);
+                            cmd.Parameters.AddWithValue("@Status", AllowedOrderStatuses[0]);
+                            cmd.Parameters.AddWithValue("@CreatedAt", now);
+                            cmd.Parameters.AddWithValue("@UpdatedAt", now);
+                            cmd.ExecuteNonQuery();
+                        }
+
+                        foreach (var item in validItems)
+                        {
+                            var meal = mealLookup[item.MealId];
+                            using (var cmd = new SqlCommand(@"INSERT INTO dbo.OrderItems (Id, OrderId, MealId, MealName, Quantity, UnitPrice, Notes, CreateDate)
+VALUES (@Id, @OrderId, @MealId, @MealName, @Quantity, @UnitPrice, @Notes, @CreateDate);", conn, tx))
+                            {
+                                cmd.Parameters.AddWithValue("@Id", Guid.NewGuid());
+                                cmd.Parameters.AddWithValue("@OrderId", orderId);
+                                cmd.Parameters.AddWithValue("@MealId", meal.Id);
+                                cmd.Parameters.AddWithValue("@MealName", meal.Name);
+                                cmd.Parameters.AddWithValue("@Quantity", item.Quantity);
+                                var priceParam = cmd.Parameters.Add("@UnitPrice", SqlDbType.Decimal);
+                                priceParam.Precision = 10;
+                                priceParam.Scale = 2;
+                                priceParam.Value = meal.Price;
+                                cmd.Parameters.AddWithValue("@Notes", string.IsNullOrWhiteSpace(item.Notes) ? (object)DBNull.Value : item.Notes.Trim());
+                                cmd.Parameters.AddWithValue("@CreateDate", now);
+                                cmd.ExecuteNonQuery();
+                            }
+                        }
+
+                        tx.Commit();
+                    }
+                }
+
+                var items = new List<object>(validItems.Count);
+                decimal total = 0m;
+                foreach (var item in validItems)
+                {
+                    var meal = mealLookup[item.MealId];
+                    decimal subtotal = meal.Price * item.Quantity;
+                    total += subtotal;
+                    items.Add(new
+                    {
+                        mealId = meal.Id,
+                        mealName = meal.Name,
+                        quantity = item.Quantity,
+                        unitPrice = meal.Price,
+                        notes = string.IsNullOrWhiteSpace(item.Notes) ? null : item.Notes.Trim(),
+                        subtotal
+                    });
+                }
+
+                return Json(new
+                {
+                    ok = true,
+                    order = new
+                    {
+                        id = orderId,
+                        orderType,
+                        tableId,
+                        tableNumber,
+                        takeoutCode,
+                        status = AllowedOrderStatuses[0],
+                        createdAt = now,
+                        notes,
+                        total,
+                        items
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Response.StatusCode = 400;
+                return Json(new { ok = false, error = ex.Message });
+            }
+        }
+
+        [HttpGet]
+        public JsonResult GetReceivingOrders(string status)
+        {
+            try
+            {
+                string filterStatus = NormalizeOrderStatusForFilter(status);
+                var sql = @"SELECT o.Id, o.OrderType, o.TableId, t.Number AS TableNumber, o.TakeoutCode, o.Status, o.CreatedAt, o.Notes AS OrderNotes,
+       i.Id AS ItemId, i.MealId, i.MealName, i.Quantity, i.UnitPrice, i.Notes AS ItemNotes
+FROM dbo.Orders AS o
+LEFT JOIN dbo.[Table] AS t ON o.TableId = t.Id
+INNER JOIN dbo.OrderItems AS i ON o.Id = i.OrderId
+WHERE (@Status IS NULL OR o.Status=@Status)
+ORDER BY o.CreatedAt ASC, i.CreateDate ASC;";
+
+                var param = new Dictionary<string, object>
+                {
+                    ["Status"] = filterStatus == null ? (object)DBNull.Value : filterStatus
+                };
+
+                var dt = _db.Query(sql, param);
+                var orders = new Dictionary<Guid, ReceivingOrderDto>(dt.Rows.Count);
+
+                foreach (DataRow row in dt.Rows)
+                {
+                    var orderId = (Guid)row["Id"];
+                    if (!orders.TryGetValue(orderId, out var order))
+                    {
+                        order = new ReceivingOrderDto
+                        {
+                            Id = orderId,
+                            OrderType = row["OrderType"]?.ToString(),
+                            TableId = row["TableId"] == DBNull.Value ? (Guid?)null : (Guid)row["TableId"],
+                            TableNumber = row["TableNumber"] == DBNull.Value ? (int?)null : Convert.ToInt32(row["TableNumber"]),
+                            TakeoutCode = row["TakeoutCode"]?.ToString(),
+                            Status = row["Status"]?.ToString(),
+                            CreatedAt = (DateTime)row["CreatedAt"],
+                            Notes = row["OrderNotes"]?.ToString(),
+                            Items = new List<ReceivingOrderItemDto>()
+                        };
+                        orders[orderId] = order;
+                    }
+
+                    order.Items.Add(new ReceivingOrderItemDto
+                    {
+                        Id = (Guid)row["ItemId"],
+                        MealId = (Guid)row["MealId"],
+                        MealName = row["MealName"]?.ToString(),
+                        Quantity = Convert.ToInt32(row["Quantity"]),
+                        UnitPrice = row["UnitPrice"] == DBNull.Value ? 0m : Convert.ToDecimal(row["UnitPrice"]),
+                        Notes = row["ItemNotes"]?.ToString()
+                    });
+                }
+
+                return Json(orders.Values.ToList(), JsonRequestBehavior.AllowGet);
+            }
+            catch (Exception ex)
+            {
+                Response.StatusCode = 400;
+                return Json(new { ok = false, error = ex.Message });
+            }
+        }
+
+        [HttpPost]
+        public JsonResult UpdateOrderStatus(UpdateOrderStatusRequest request)
+        {
+            try
+            {
+                if (request == null)
+                    throw new ArgumentException("缺少訂單資料");
+
+                if (request.OrderId == Guid.Empty)
+                    throw new ArgumentException("缺少訂單 Id");
+
+                string normalized = NormalizeOrderStatus(request.Status);
+                var data = new Dictionary<string, object>
+                {
+                    ["Status"] = normalized,
+                    ["UpdatedAt"] = DateTime.UtcNow
+                };
+
+                int rows = _db.DoSQL("Update", "Orders", id: request.OrderId.ToString(), data: data);
+                return Json(new { ok = rows > 0, rows });
+            }
+            catch (Exception ex)
+            {
+                Response.StatusCode = 400;
+                return Json(new { ok = false, error = ex.Message });
+            }
+        }
+        #endregion
+
+        private class MealSnapshot
+        {
+            public Guid Id { get; set; }
+            public string Name { get; set; }
+            public decimal Price { get; set; }
         }
 
         [HttpPost]
@@ -477,6 +832,51 @@ namespace breakfastshop.Controllers
     {
         public string Account { get; set; }
         public string Password { get; set; }
+    }
+
+    public class OrderItemRequest
+    {
+        public Guid MealId { get; set; }
+        public int Quantity { get; set; }
+        public string Notes { get; set; }
+    }
+
+    public class CreateOrderRequest
+    {
+        public string OrderType { get; set; }
+        public Guid? TableId { get; set; }
+        public Guid? ShopId { get; set; }
+        public string Notes { get; set; }
+        public List<OrderItemRequest> Items { get; set; }
+    }
+
+    public class ReceivingOrderDto
+    {
+        public Guid Id { get; set; }
+        public string OrderType { get; set; }
+        public Guid? TableId { get; set; }
+        public int? TableNumber { get; set; }
+        public string TakeoutCode { get; set; }
+        public string Status { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public string Notes { get; set; }
+        public List<ReceivingOrderItemDto> Items { get; set; }
+    }
+
+    public class ReceivingOrderItemDto
+    {
+        public Guid Id { get; set; }
+        public Guid MealId { get; set; }
+        public string MealName { get; set; }
+        public int Quantity { get; set; }
+        public decimal UnitPrice { get; set; }
+        public string Notes { get; set; }
+    }
+
+    public class UpdateOrderStatusRequest
+    {
+        public Guid OrderId { get; set; }
+        public string Status { get; set; }
     }
 
     public class MealDto

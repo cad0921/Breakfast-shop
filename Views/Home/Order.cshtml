@@ -1,7 +1,241 @@
-﻿
-@{
+﻿@{
     ViewBag.Title = "Order";
 }
 
-<h2>Order</h2>
+<div class="order-page">
+    <h2>點餐</h2>
 
+    <section class="order-options">
+        <h3>用餐方式</h3>
+        <label class="order-option">
+            <input type="radio" name="orderType" value="DineIn" checked /> 內用
+        </label>
+        <label class="order-option">
+            <input type="radio" name="orderType" value="TakeOut" /> 外帶
+        </label>
+    </section>
+
+    <section id="tableSection" class="table-section">
+        <h3>桌號</h3>
+        <select id="tableSelect" class="table-select">
+            <option value="">請選擇桌號</option>
+        </select>
+    </section>
+
+    <section class="notes-section">
+        <h3>訂單備註</h3>
+        <textarea id="orderNotes" rows="3" placeholder="例如：餐點請少冰"></textarea>
+    </section>
+
+    <section class="menu-section">
+        <h3>餐點</h3>
+        <div id="menuLoading" class="loading">載入餐點中…</div>
+        <table id="mealTable" class="menu-table" hidden>
+            <thead>
+                <tr>
+                    <th>名稱</th>
+                    <th>價格</th>
+                    <th>數量</th>
+                    <th>備註</th>
+                </tr>
+            </thead>
+            <tbody id="mealList"></tbody>
+        </table>
+    </section>
+
+    <div class="order-actions">
+        <button id="submitOrder" type="button">送出訂單</button>
+    </div>
+
+    <div id="orderResult" class="order-result" role="status"></div>
+</div>
+
+<style>
+    .order-page { max-width: 960px; margin: 0 auto; padding: 1rem; }
+    .order-options, .table-section, .menu-section, .notes-section { margin-bottom: 1.5rem; }
+    .order-option { margin-right: 1rem; font-weight: 600; }
+    .table-select { min-width: 200px; padding: 0.25rem 0.5rem; }
+    .menu-table { width: 100%; border-collapse: collapse; }
+    .menu-table th, .menu-table td { border: 1px solid #ddd; padding: 0.5rem; text-align: left; }
+    .menu-table input[type="number"], .menu-table input[type="text"] { width: 100%; box-sizing: border-box; }
+    .order-actions { margin-top: 1.5rem; }
+    #submitOrder { padding: 0.75rem 1.5rem; font-size: 1rem; }
+    .order-result { margin-top: 1rem; min-height: 1.5rem; font-weight: 600; }
+    .loading { color: #777; }
+    textarea { width: 100%; box-sizing: border-box; padding: 0.5rem; }
+</style>
+
+<script>
+    (function () {
+        const tableSection = document.getElementById('tableSection');
+        const tableSelect = document.getElementById('tableSelect');
+        const mealTable = document.getElementById('mealTable');
+        const mealList = document.getElementById('mealList');
+        const menuLoading = document.getElementById('menuLoading');
+        const orderResult = document.getElementById('orderResult');
+        const submitButton = document.getElementById('submitOrder');
+        const orderNotes = document.getElementById('orderNotes');
+
+        function toggleTableSection() {
+            const selectedType = document.querySelector('input[name="orderType"]:checked').value;
+            if (selectedType === 'DineIn') {
+                tableSection.style.display = '';
+            } else {
+                tableSection.style.display = 'none';
+            }
+        }
+
+        function renderTables(tables) {
+            tableSelect.innerHTML = '<option value="">請選擇桌號</option>';
+            tables.forEach(table => {
+                const option = document.createElement('option');
+                option.value = table.Id;
+                option.textContent = '桌號 ' + table.Number;
+                tableSelect.appendChild(option);
+            });
+        }
+
+        function renderMeals(meals) {
+            mealList.innerHTML = '';
+            meals.forEach(meal => {
+                const row = document.createElement('tr');
+                row.dataset.mealId = meal.Id;
+
+                const nameCell = document.createElement('td');
+                nameCell.textContent = meal.Name;
+                row.appendChild(nameCell);
+
+                const priceCell = document.createElement('td');
+                priceCell.textContent = meal.Money != null ? '$' + Number(meal.Money).toFixed(0) : '-';
+                row.appendChild(priceCell);
+
+                const quantityCell = document.createElement('td');
+                const quantityInput = document.createElement('input');
+                quantityInput.type = 'number';
+                quantityInput.min = '0';
+                quantityInput.value = '0';
+                quantityInput.className = 'meal-quantity';
+                quantityCell.appendChild(quantityInput);
+                row.appendChild(quantityCell);
+
+                const noteCell = document.createElement('td');
+                const noteInput = document.createElement('input');
+                noteInput.type = 'text';
+                noteInput.placeholder = '備註 (可選)';
+                noteInput.className = 'meal-note';
+                noteCell.appendChild(noteInput);
+                row.appendChild(noteCell);
+
+                mealList.appendChild(row);
+            });
+
+            mealTable.hidden = meals.length === 0;
+            menuLoading.style.display = meals.length === 0 ? '' : 'none';
+            if (meals.length === 0) {
+                menuLoading.textContent = '目前沒有可供點餐的餐點。';
+            }
+        }
+
+        function loadTables() {
+            fetch('@Url.Action("GetTable", "Home")?onlyActive=true')
+                .then(r => r.json())
+                .then(renderTables)
+                .catch(() => { orderResult.textContent = '無法載入桌號，請稍後再試。'; });
+        }
+
+        function loadMeals() {
+            fetch('@Url.Action("GetMeals", "Home")?onlyActive=true')
+                .then(r => r.json())
+                .then(data => {
+                    renderMeals(data);
+                })
+                .catch(() => {
+                    menuLoading.textContent = '無法載入餐點，請稍後再試。';
+                });
+        }
+
+        function collectOrderItems() {
+            const rows = mealList.querySelectorAll('tr');
+            const items = [];
+            rows.forEach(row => {
+                const quantity = parseInt(row.querySelector('.meal-quantity').value, 10) || 0;
+                if (quantity > 0) {
+                    const mealId = row.dataset.mealId;
+                    const note = row.querySelector('.meal-note').value.trim();
+                    items.push({
+                        mealId: mealId,
+                        quantity: quantity,
+                        notes: note || null
+                    });
+                }
+            });
+            return items;
+        }
+
+        function submitOrder() {
+            orderResult.textContent = '';
+            const orderType = document.querySelector('input[name="orderType"]:checked').value;
+            const items = collectOrderItems();
+
+            if (items.length === 0) {
+                orderResult.textContent = '請至少選擇一項餐點。';
+                return;
+            }
+
+            let tableId = null;
+            if (orderType === 'DineIn') {
+                tableId = tableSelect.value;
+                if (!tableId) {
+                    orderResult.textContent = '請選擇桌號。';
+                    return;
+                }
+            }
+
+            submitButton.disabled = true;
+
+            fetch('@Url.Action("CreateOrder", "Home")', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    orderType: orderType,
+                    tableId: tableId,
+                    notes: orderNotes.value.trim(),
+                    items: items
+                })
+            })
+                .then(async response => {
+                    const payload = await response.json();
+                    if (!response.ok || !payload.ok) {
+                        throw new Error(payload.error || '送出訂單失敗');
+                    }
+
+                    const order = payload.order;
+                    if (order.orderType === 'TakeOut') {
+                        orderResult.textContent = '外帶訂單建立成功！取餐碼：' + order.takeoutCode;
+                    } else {
+                        orderResult.textContent = '內用訂單建立成功！桌號：' + order.tableNumber;
+                    }
+
+                    mealList.querySelectorAll('.meal-quantity').forEach(input => input.value = '0');
+                    mealList.querySelectorAll('.meal-note').forEach(input => input.value = '');
+                    orderNotes.value = '';
+                })
+                .catch(err => {
+                    orderResult.textContent = err.message;
+                })
+                .finally(() => {
+                    submitButton.disabled = false;
+                });
+        }
+
+        document.querySelectorAll('input[name="orderType"]').forEach(input => {
+            input.addEventListener('change', toggleTableSection);
+        });
+
+        submitButton.addEventListener('click', submitOrder);
+
+        toggleTableSection();
+        loadTables();
+        loadMeals();
+    })();
+</script>
