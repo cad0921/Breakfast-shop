@@ -24,6 +24,8 @@ GO
 IF OBJECT_ID(N'dbo.Meals', N'U') IS NOT NULL DROP TABLE dbo.Meals;
 IF OBJECT_ID(N'dbo.Combo', N'U') IS NOT NULL DROP TABLE dbo.Combo;
 IF OBJECT_ID(N'dbo.[Table]', N'U') IS NOT NULL DROP TABLE dbo.[Table];
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Shop_Account' AND object_id = OBJECT_ID(N'dbo.Shop'))
+    DROP INDEX IX_Shop_Account ON dbo.Shop;
 IF OBJECT_ID(N'dbo.Shop', N'U') IS NOT NULL DROP TABLE dbo.Shop;
 GO
 
@@ -35,6 +37,8 @@ CREATE TABLE dbo.Shop
     Id          UNIQUEIDENTIFIER NOT NULL CONSTRAINT DF_Shop_Id DEFAULT (NEWSEQUENTIALID()),
     Name        NVARCHAR(50)     NOT NULL,
     Phone       NVARCHAR(20)     NULL,
+    Account     NVARCHAR(50)     NULL,
+    [Password]  NVARCHAR(100)    NULL,
     Addr        NVARCHAR(100)    NULL,
     IsActive    BIT              NOT NULL CONSTRAINT DF_Shop_IsActive DEFAULT (1),
     CreateDate  DATETIME2(0)     NOT NULL CONSTRAINT DF_Shop_CreateDate DEFAULT (SYSUTCDATETIME()),
@@ -42,6 +46,9 @@ CREATE TABLE dbo.Shop
     CONSTRAINT PK_Shop PRIMARY KEY (Id),
     CONSTRAINT UQ_Shop_Name UNIQUE (Name)
 );
+GO
+
+CREATE UNIQUE INDEX IX_Shop_Account ON dbo.Shop (Account) WHERE Account IS NOT NULL;
 GO
 
 /* ============================
