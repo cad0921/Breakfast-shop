@@ -25,6 +25,8 @@ GO
 /* ============================
    Drop tables in dependency order
    ============================ */
+IF OBJECT_ID(N'dbo.OrderItems', N'U') IS NOT NULL DROP TABLE dbo.OrderItems;
+IF OBJECT_ID(N'dbo.Orders', N'U') IS NOT NULL DROP TABLE dbo.Orders;
 IF OBJECT_ID(N'dbo.Meals', N'U') IS NOT NULL DROP TABLE dbo.Meals;
 IF OBJECT_ID(N'dbo.Combo', N'U') IS NOT NULL DROP TABLE dbo.Combo;
 IF OBJECT_ID(N'dbo.[Table]', N'U') IS NOT NULL DROP TABLE dbo.[Table];
@@ -144,6 +146,58 @@ CREATE TABLE dbo.[Table]
 GO
 
 /* ============================
+   Orders
+   ============================ */
+CREATE TABLE dbo.Orders
+(
+    Id          UNIQUEIDENTIFIER NOT NULL CONSTRAINT DF_Orders_Id DEFAULT (NEWSEQUENTIALID()),
+    ShopId      UNIQUEIDENTIFIER NULL,
+    OrderType   NVARCHAR(20)     NOT NULL,
+    TableId     UNIQUEIDENTIFIER NULL,
+    TakeoutCode NVARCHAR(8)      NULL,
+    Notes       NVARCHAR(200)    NULL,
+    Status      NVARCHAR(20)     NOT NULL CONSTRAINT DF_Orders_Status DEFAULT ('Pending'),
+    CreatedAt   DATETIME2(0)     NOT NULL CONSTRAINT DF_Orders_CreatedAt DEFAULT (SYSUTCDATETIME()),
+    UpdatedAt   DATETIME2(0)     NOT NULL CONSTRAINT DF_Orders_UpdatedAt DEFAULT (SYSUTCDATETIME()),
+    CONSTRAINT PK_Orders PRIMARY KEY (Id),
+    CONSTRAINT FK_Orders_Shop FOREIGN KEY (ShopId)
+        REFERENCES dbo.Shop (Id) ON DELETE SET NULL,
+    CONSTRAINT FK_Orders_Table FOREIGN KEY (TableId)
+        REFERENCES dbo.[Table] (Id) ON DELETE SET NULL,
+    CONSTRAINT CK_Orders_Type CHECK (OrderType IN ('DineIn', 'TakeOut')),
+    CONSTRAINT CK_Orders_Status CHECK (Status IN ('Pending', 'Preparing', 'Completed', 'Cancelled')),
+    CONSTRAINT CK_Orders_TakeoutCode CHECK (TakeoutCode IS NULL OR LEN(TakeoutCode) = 8)
+);
+
+CREATE UNIQUE INDEX IX_Orders_TakeoutCode ON dbo.Orders (TakeoutCode) WHERE TakeoutCode IS NOT NULL;
+CREATE INDEX IX_Orders_Status ON dbo.Orders (Status, CreatedAt);
+GO
+
+/* ============================
+   OrderItems
+   ============================ */
+CREATE TABLE dbo.OrderItems
+(
+    Id         UNIQUEIDENTIFIER NOT NULL CONSTRAINT DF_OrderItems_Id DEFAULT (NEWSEQUENTIALID()),
+    OrderId    UNIQUEIDENTIFIER NOT NULL,
+    MealId     UNIQUEIDENTIFIER NOT NULL,
+    MealName   NVARCHAR(100)    NOT NULL,
+    Quantity   INT              NOT NULL,
+    UnitPrice  DECIMAL(10,2)    NOT NULL,
+    Notes      NVARCHAR(200)    NULL,
+    CreateDate DATETIME2(0)     NOT NULL CONSTRAINT DF_OrderItems_CreateDate DEFAULT (SYSUTCDATETIME()),
+    CONSTRAINT PK_OrderItems PRIMARY KEY (Id),
+    CONSTRAINT FK_OrderItems_Order FOREIGN KEY (OrderId)
+        REFERENCES dbo.Orders (Id) ON DELETE CASCADE,
+    CONSTRAINT FK_OrderItems_Meal FOREIGN KEY (MealId)
+        REFERENCES dbo.Meals (Id) ON DELETE NO ACTION,
+    CONSTRAINT CK_OrderItems_Quantity CHECK (Quantity > 0)
+);
+
+CREATE INDEX IX_OrderItems_Order ON dbo.OrderItems (OrderId);
+GO
+
+/* ============================
    Helper triggers to keep UpdateDate fresh
    ============================ */
 CREATE OR ALTER TRIGGER TR_Shop_SetUpdateDate
@@ -155,6 +209,18 @@ BEGIN
     UPDATE s SET UpdateDate = SYSUTCDATETIME()
     FROM dbo.Shop AS s
     INNER JOIN inserted AS i ON s.Id = i.Id;
+END;
+GO
+
+CREATE OR ALTER TRIGGER TR_Orders_SetUpdatedAt
+ON dbo.Orders
+AFTER UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE o SET UpdatedAt = SYSUTCDATETIME()
+    FROM dbo.Orders AS o
+    INNER JOIN inserted AS i ON o.Id = i.Id;
 END;
 GO
 

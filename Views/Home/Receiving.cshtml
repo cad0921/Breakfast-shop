@@ -1,7 +1,180 @@
-﻿
-@{
+﻿@{
     ViewBag.Title = "Receiving";
 }
 
-<h2>Receiving</h2>
+<div class="receiving-page">
+    <h2>訂單接收</h2>
 
+    <section class="receiving-controls">
+        <label>
+            狀態篩選：
+            <select id="statusFilter">
+                <option value="Pending">待製作</option>
+                <option value="Preparing">製作中</option>
+                <option value="Completed">已完成</option>
+                <option value="All">全部訂單</option>
+            </select>
+        </label>
+        <button id="refreshOrders" type="button">重新整理</button>
+    </section>
+
+    <div id="ordersContainer" class="orders-container"></div>
+    <div id="receivingMessage" class="receiving-message" role="status"></div>
+</div>
+
+<style>
+    .receiving-page { max-width: 960px; margin: 0 auto; padding: 1rem; }
+    .receiving-controls { display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; }
+    .orders-container { display: grid; gap: 1rem; }
+    .order-card { border: 1px solid #ddd; border-radius: 4px; padding: 1rem; background: #fff; }
+    .order-header { display: flex; justify-content: space-between; flex-wrap: wrap; margin-bottom: 0.5rem; }
+    .order-items { margin: 0; padding-left: 1.25rem; }
+    .order-items li { margin-bottom: 0.25rem; }
+    .order-actions { margin-top: 0.75rem; display: flex; gap: 0.5rem; }
+    .order-actions button { padding: 0.5rem 1rem; }
+    .empty-state { color: #777; }
+    .status-pill { padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.875rem; background: #f0f0f0; }
+</style>
+
+<script>
+    (function () {
+        const ordersContainer = document.getElementById('ordersContainer');
+        const statusFilter = document.getElementById('statusFilter');
+        const refreshButton = document.getElementById('refreshOrders');
+        const messageBox = document.getElementById('receivingMessage');
+        let refreshTimer = null;
+
+        const statusLabel = {
+            Pending: '待製作',
+            Preparing: '製作中',
+            Completed: '已完成',
+            Cancelled: '已取消'
+        };
+
+        function formatHeader(order) {
+            if (order.OrderType === 'TakeOut') {
+                return '外帶取餐碼：' + (order.TakeoutCode || '未產生');
+            }
+            if (order.TableNumber != null) {
+                return '內用桌號：' + order.TableNumber;
+            }
+            return '內用';
+        }
+
+        function renderOrders(orders) {
+            ordersContainer.innerHTML = '';
+            if (!orders || orders.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'empty-state';
+                empty.textContent = '目前沒有訂單。';
+                ordersContainer.appendChild(empty);
+                return;
+            }
+
+            orders.forEach(order => {
+                const card = document.createElement('div');
+                card.className = 'order-card';
+
+                const header = document.createElement('div');
+                header.className = 'order-header';
+                const title = document.createElement('div');
+                title.textContent = formatHeader(order);
+                const status = document.createElement('span');
+                status.className = 'status-pill';
+                status.textContent = statusLabel[order.Status] || order.Status;
+                header.appendChild(title);
+                header.appendChild(status);
+                card.appendChild(header);
+
+                if (order.Notes) {
+                    const notes = document.createElement('div');
+                    notes.textContent = '備註：' + order.Notes;
+                    notes.style.marginBottom = '0.5rem';
+                    card.appendChild(notes);
+                }
+
+                const itemList = document.createElement('ul');
+                itemList.className = 'order-items';
+                order.Items.forEach(item => {
+                    const li = document.createElement('li');
+                    const subtotal = (item.UnitPrice * item.Quantity).toFixed(0);
+                    li.textContent = item.MealName + ' x ' + item.Quantity + ' ($' + subtotal + ')';
+                    if (item.Notes) {
+                        li.textContent += ' - ' + item.Notes;
+                    }
+                    itemList.appendChild(li);
+                });
+                card.appendChild(itemList);
+
+                const actions = document.createElement('div');
+                actions.className = 'order-actions';
+
+                if (order.Status === 'Pending') {
+                    actions.appendChild(createActionButton(order.Id, 'Preparing', '開始製作'));
+                }
+                if (order.Status === 'Pending' || order.Status === 'Preparing') {
+                    actions.appendChild(createActionButton(order.Id, 'Completed', '標記完成'));
+                }
+
+                if (actions.children.length > 0) {
+                    card.appendChild(actions);
+                }
+
+                ordersContainer.appendChild(card);
+            });
+        }
+
+        function createActionButton(orderId, status, label) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.textContent = label;
+            button.addEventListener('click', () => updateStatus(orderId, status));
+            return button;
+        }
+
+        function fetchOrders() {
+            const status = statusFilter.value;
+            messageBox.textContent = '載入訂單中…';
+            fetch('@Url.Action("GetReceivingOrders", "Home")' + (status ? '?status=' + encodeURIComponent(status) : ''))
+                .then(r => r.json())
+                .then(data => {
+                    messageBox.textContent = '';
+                    renderOrders(data);
+                })
+                .catch(() => {
+                    messageBox.textContent = '無法載入訂單，請稍後再試。';
+                });
+        }
+
+        function updateStatus(orderId, status) {
+            messageBox.textContent = '更新訂單狀態中…';
+            fetch('@Url.Action("UpdateOrderStatus", "Home")', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ OrderId: orderId, Status: status })
+            })
+                .then(async response => {
+                    const payload = await response.json();
+                    if (!response.ok || !payload.ok) {
+                        throw new Error(payload.error || '更新失敗');
+                    }
+                    messageBox.textContent = '狀態已更新。';
+                    fetchOrders();
+                })
+                .catch(err => {
+                    messageBox.textContent = err.message;
+                });
+        }
+
+        function startAutoRefresh() {
+            if (refreshTimer) clearInterval(refreshTimer);
+            refreshTimer = setInterval(fetchOrders, 10000);
+        }
+
+        refreshButton.addEventListener('click', fetchOrders);
+        statusFilter.addEventListener('change', fetchOrders);
+
+        fetchOrders();
+        startAutoRefresh();
+    })();
+</script>
