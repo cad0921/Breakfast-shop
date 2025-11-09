@@ -14,7 +14,7 @@ namespace breakfastshop.Models
             "Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True;";
 
         private static readonly HashSet<string> TableWhitelist =
-            new HashSet<string>(new[] { "Shop", "Meals", "Combo", "Table" }, StringComparer.OrdinalIgnoreCase);
+            new HashSet<string>(new[] { "Shop", "Meals", "Combo", "Table", "MealCategory" }, StringComparer.OrdinalIgnoreCase);
 
         // ---- 統一入口：Create / Update / Delete ----
         public int DoSQL(string action, string table, string id = null, Dictionary<string, object> data = null)
