@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Web.Mvc;
 using breakfastshop.Models;
@@ -346,6 +346,7 @@ namespace breakfastshop.Controllers
         public bool? IsActive { get; set; }
         public string Element { get; set; }
         public string Table { get; set; }  // 若不用可忽略
+        public string Classification { get; set; }
     }
 
     public class ComboDto
