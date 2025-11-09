@@ -165,7 +165,7 @@ CREATE TABLE dbo.Orders
     CONSTRAINT FK_Orders_Shop FOREIGN KEY (ShopId)
         REFERENCES dbo.Shop (Id) ON DELETE SET NULL,
     CONSTRAINT FK_Orders_Table FOREIGN KEY (TableId)
-        REFERENCES dbo.[Table] (Id) ON DELETE SET NULL,
+        REFERENCES dbo.[Table] (Id) ON DELETE NO ACTION,
     CONSTRAINT CK_Orders_OrderType CHECK (OrderType IN (N'DineIn', N'TakeOut')),
     CONSTRAINT CK_Orders_Status CHECK (Status IN (N'Pending', N'Preparing', N'Completed', N'Cancelled'))
 );
