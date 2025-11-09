@@ -124,9 +124,9 @@ namespace breakfastshop.Controllers
             throw new InvalidOperationException("無法產生外帶取餐碼，請稍後再試");
         }
 
-        private int EnsureTableExists(Guid tableId)
+        private TableInfo EnsureTableExists(Guid tableId, Guid? expectedShopId)
         {
-            var dt = _db.Query("SELECT TOP 1 Number FROM dbo.[Table] WHERE Id=@Id AND IsActive=1", new Dictionary<string, object>
+            var dt = _db.Query("SELECT TOP 1 Number, ShopId FROM dbo.[Table] WHERE Id=@Id AND IsActive=1", new Dictionary<string, object>
             {
                 ["Id"] = tableId
             });
@@ -134,7 +134,18 @@ namespace breakfastshop.Controllers
             if (dt.Rows.Count == 0)
                 throw new ArgumentException("找不到指定的桌號");
 
-            return Convert.ToInt32(dt.Rows[0]["Number"]);
+            var row = dt.Rows[0];
+            var info = new TableInfo
+            {
+                Id = tableId,
+                Number = Convert.ToInt32(row["Number"]),
+                ShopId = (Guid)row["ShopId"]
+            };
+
+            if (expectedShopId.HasValue && expectedShopId.Value != info.ShopId)
+                throw new ArgumentException("桌號不屬於指定的店家");
+
+            return info;
         }
 
         private Dictionary<Guid, MealSnapshot> LoadMealsSnapshot(IEnumerable<Guid> mealIds)
@@ -213,13 +224,15 @@ namespace breakfastshop.Controllers
 
                 Guid? tableId = null;
                 int? tableNumber = null;
+                TableInfo tableInfo = null;
                 if (string.Equals(orderType, "DineIn", StringComparison.OrdinalIgnoreCase))
                 {
                     if (!request.TableId.HasValue || request.TableId.Value == Guid.Empty)
                         throw new ArgumentException("內用訂單需選擇桌號");
 
-                    tableNumber = EnsureTableExists(request.TableId.Value);
-                    tableId = request.TableId.Value;
+                    tableInfo = EnsureTableExists(request.TableId.Value, request.ShopId);
+                    tableNumber = tableInfo.Number;
+                    tableId = tableInfo.Id;
                 }
 
                 var mealLookup = LoadMealsSnapshot(validItems.Select(i => i.MealId));
@@ -234,6 +247,10 @@ namespace breakfastshop.Controllers
                 Guid orderId = Guid.NewGuid();
                 string notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim();
                 Guid? shopId = request.ShopId.HasValue && request.ShopId.Value != Guid.Empty ? request.ShopId : null;
+                if (tableInfo != null)
+                {
+                    shopId = shopId ?? tableInfo.ShopId;
+                }
 
                 using (var conn = _db.CreateConnection())
                 {
@@ -307,6 +324,7 @@ VALUES (@Id, @OrderId, @MealId, @MealName, @Quantity, @UnitPrice, @Notes, @Creat
                         orderType,
                         tableId,
                         tableNumber,
+                        shopId,
                         takeoutCode,
                         status = AllowedOrderStatuses[0],
                         createdAt = now,
@@ -329,10 +347,11 @@ VALUES (@Id, @OrderId, @MealId, @MealName, @Quantity, @UnitPrice, @Notes, @Creat
             try
             {
                 string filterStatus = NormalizeOrderStatusForFilter(status);
-                var sql = @"SELECT o.Id, o.OrderType, o.TableId, t.Number AS TableNumber, o.TakeoutCode, o.Status, o.CreatedAt, o.Notes AS OrderNotes,
+                var sql = @"SELECT o.Id, o.ShopId, s.Name AS ShopName, o.OrderType, o.TableId, t.Number AS TableNumber, t.Zone AS TableZone, o.TakeoutCode, o.Status, o.CreatedAt, o.Notes AS OrderNotes,
        i.Id AS ItemId, i.MealId, i.MealName, i.Quantity, i.UnitPrice, i.Notes AS ItemNotes
 FROM dbo.Orders AS o
 LEFT JOIN dbo.[Table] AS t ON o.TableId = t.Id
+LEFT JOIN dbo.Shop AS s ON o.ShopId = s.Id
 INNER JOIN dbo.OrderItems AS i ON o.Id = i.OrderId
 WHERE (@Status IS NULL OR o.Status=@Status)
 ORDER BY o.CreatedAt ASC, i.CreateDate ASC;";
@@ -353,9 +372,12 @@ ORDER BY o.CreatedAt ASC, i.CreateDate ASC;";
                         order = new ReceivingOrderDto
                         {
                             Id = orderId,
+                            ShopId = row["ShopId"] == DBNull.Value ? (Guid?)null : (Guid)row["ShopId"],
+                            ShopName = row["ShopName"] == DBNull.Value ? null : row["ShopName"].ToString(),
                             OrderType = row["OrderType"]?.ToString(),
                             TableId = row["TableId"] == DBNull.Value ? (Guid?)null : (Guid)row["TableId"],
                             TableNumber = row["TableNumber"] == DBNull.Value ? (int?)null : Convert.ToInt32(row["TableNumber"]),
+                            TableZone = row["TableZone"] == DBNull.Value ? null : row["TableZone"].ToString(),
                             TakeoutCode = row["TakeoutCode"]?.ToString(),
                             Status = row["Status"]?.ToString(),
                             CreatedAt = (DateTime)row["CreatedAt"],
@@ -419,6 +441,13 @@ ORDER BY o.CreatedAt ASC, i.CreateDate ASC;";
             public Guid Id { get; set; }
             public string Name { get; set; }
             public decimal Price { get; set; }
+        }
+
+        private class TableInfo
+        {
+            public Guid Id { get; set; }
+            public Guid ShopId { get; set; }
+            public int Number { get; set; }
         }
 
         [HttpPost]
@@ -758,7 +787,9 @@ ORDER BY o.CreatedAt ASC, i.CreateDate ASC;";
         public class TableDto
         {
             public Guid Id { get; set; }
+            public Guid ShopId { get; set; }
             public int Number { get; set; }
+            public string Zone { get; set; }
             public bool? IsActive { get; set; }
         }
 
@@ -768,10 +799,11 @@ ORDER BY o.CreatedAt ASC, i.CreateDate ASC;";
         public JsonResult GetTable(bool? onlyActive)
         {
             var sql = @"
-        SELECT Id, Number, IsActive, CreateDate, UpdateDate
-        FROM dbo.[Table]
-        WHERE (@OnlyAct IS NULL OR IsActive=@OnlyAct)
-        ORDER BY Number ASC";
+        SELECT t.Id, t.ShopId, s.Name AS ShopName, t.Number, t.Zone, t.IsActive, t.CreateDate, t.UpdateDate
+        FROM dbo.[Table] AS t
+        LEFT JOIN dbo.Shop AS s ON t.ShopId = s.Id
+        WHERE (@OnlyAct IS NULL OR t.IsActive=@OnlyAct)
+        ORDER BY s.Name ASC, t.Number ASC";
             var dt = _db.Query(sql, new Dictionary<string, object>
             {
                 ["OnlyAct"] = (object)onlyActive ?? DBNull.Value
@@ -794,6 +826,7 @@ ORDER BY o.CreatedAt ASC, i.CreateDate ASC;";
                 }
 
                 if (model == null) throw new ArgumentException("缺少資料");
+                if (model.ShopId == Guid.Empty) throw new ArgumentException("桌號需指定店家");
                 if (model.Number <= 0) throw new ArgumentException("桌號必須為正整數");
                 var data = new Dictionary<string, object>();
 
@@ -807,7 +840,9 @@ ORDER BY o.CreatedAt ASC, i.CreateDate ASC;";
                     if (model.Id == Guid.Empty) throw new ArgumentException("缺少 Id");
                 }
 
+                data["ShopId"] = model.ShopId;
                 data["Number"] = model.Number;
+                data["Zone"] = string.IsNullOrWhiteSpace(model.Zone) ? (object)DBNull.Value : model.Zone.Trim();
                 if (model.IsActive.HasValue) data["IsActive"] = model.IsActive.Value;
                 data["UpdateDate"] = DateTime.UtcNow;
 
@@ -853,9 +888,12 @@ ORDER BY o.CreatedAt ASC, i.CreateDate ASC;";
     public class ReceivingOrderDto
     {
         public Guid Id { get; set; }
+        public Guid? ShopId { get; set; }
+        public string ShopName { get; set; }
         public string OrderType { get; set; }
         public Guid? TableId { get; set; }
         public int? TableNumber { get; set; }
+        public string TableZone { get; set; }
         public string TakeoutCode { get; set; }
         public string Status { get; set; }
         public DateTime CreatedAt { get; set; }
