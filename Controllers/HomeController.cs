@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography;
+using System.Text;
 using System.Web.Mvc;
 using breakfastshop.Models;
 
@@ -8,6 +10,38 @@ namespace breakfastshop.Controllers
     public class HomeController : Controller
     {
         private readonly BackstageSQL _db = new BackstageSQL();
+
+        private const string AdminAccountName = "admin";
+        private const string AdminDisplayName = "系統管理員";
+        // 預設管理員密碼：Breakfast@2024（以 SHA-256 儲存）
+        private const string AdminPasswordHash = "c881fa2020986c9ce4315e8fb5b91c54c4627ad01115b2a56b11d4dba17a5507";
+        private static readonly Guid AdminId = Guid.Empty;
+
+        private static bool IsAdminAccount(string account)
+        {
+            return string.Equals(account, AdminAccountName, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool VerifyAdminPassword(string password)
+        {
+            if (string.IsNullOrEmpty(password)) return false;
+            string hash = HashPassword(password);
+            return string.Equals(hash, AdminPasswordHash, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string HashPassword(string value)
+        {
+            using (var sha = SHA256.Create())
+            {
+                var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(value ?? string.Empty));
+                var sb = new StringBuilder(bytes.Length * 2);
+                foreach (var b in bytes)
+                {
+                    sb.AppendFormat("{0:x2}", b);
+                }
+                return sb.ToString();
+            }
+        }
 
         public ActionResult Index() { return View(); }
         public ActionResult Backstage() { return View(); }
@@ -32,6 +66,24 @@ namespace breakfastshop.Controllers
                 if (password.Length < 6)
                     throw new ArgumentException("密碼至少 6 碼");
 
+                if (IsAdminAccount(account))
+                {
+                    if (!VerifyAdminPassword(password))
+                    {
+                        Response.StatusCode = 401;
+                        return Json(new { ok = false, error = "帳號或密碼錯誤" });
+                    }
+
+                    return Json(new
+                    {
+                        ok = true,
+                        id = AdminId,
+                        name = AdminDisplayName,
+                        account = AdminAccountName,
+                        isAdmin = true
+                    });
+                }
+
                 var sql = @"SELECT TOP 1 Id, Name, Account
                             FROM dbo.Shop
                             WHERE Account=@Account AND Password=@Password
@@ -55,7 +107,8 @@ namespace breakfastshop.Controllers
                     ok = true,
                     id = row["Id"],
                     name = row["Name"],
-                    account = row["Account"]
+                    account = row["Account"],
+                    isAdmin = false
                 });
             }
             catch (Exception ex)

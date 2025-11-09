@@ -254,9 +254,11 @@
                     throw new Error((data && data.error) || '登入失敗');
                 }
 
-                sessionStorage.setItem('ll-shop-id', data.id);
+                const shopId = data.id ? String(data.id) : '';
+                sessionStorage.setItem('ll-shop-id', shopId);
                 sessionStorage.setItem('ll-shop-name', data.name || '');
                 sessionStorage.setItem('ll-shop-account', data.account || '');
+                sessionStorage.setItem('ll-is-admin', data.isAdmin === true ? 'true' : 'false');
 
                 if (rememberBox.checked) {
                     localStorage.setItem('ll-login-account', account);

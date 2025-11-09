@@ -561,10 +561,10 @@
         (() => {
             const SHOP_ID = sessionStorage.getItem('ll-shop-id') || '';
             const SHOP_NAME = sessionStorage.getItem('ll-shop-name') || '';
-            const SHOP_ACCOUNT = (sessionStorage.getItem('ll-shop-account') || '').toLowerCase();
-            const IS_ADMIN = SHOP_ACCOUNT === 'admin';
+            const SHOP_ACCOUNT = sessionStorage.getItem('ll-shop-account') || '';
+            const IS_ADMIN = sessionStorage.getItem('ll-is-admin') === 'true';
 
-            if (!SHOP_ID) {
+            if (!SHOP_ID && !IS_ADMIN) {
                 window.location.href = '@Url.Action("Login", "Home")';
                 return;
             }
@@ -600,6 +600,7 @@
                 kwTables: $('#kwTables'), activeTables: $('#activeTables'), btnSearchTables: $('#btnSearchTables'), btnNewTable: $('#btnNewTable'), tablesBody: $('#tablesBody'), tablesPager: $('#tablesPager'),
                 // shops
                 kwShops: $('#kwShops'), activeShops: $('#activeShops'), btnSearchShops: $('#btnSearchShops'), btnNewShop: $('#btnNewShop'), shopsBody: $('#shopsBody'), shopsPager: $('#shopsPager'),
+                shopsTab: document.getElementById('shops-tab'), shopsPane: document.getElementById('shops'),
                 // modals & forms
                 itemModal: $('#itemModal'), itemForm: $('#itemForm'), itemId: $('#itemId'), itemName: $('#itemName'), itemShopId: $('#itemShopId'), itemPrice: $('#itemPrice'), itemIngredients: $('#itemIngredients'), itemActive: $('#itemActive'), itemLimited: $('#itemLimited'), itemLimitedQty: $('#itemLimitedQty'), itemRemainingQty: $('#itemRemainingQty'), saveItem: $('#saveItem'),
                 comboModal: $('#comboModal'), comboForm: $('#comboForm'), comboId: $('#comboId'), comboName: $('#comboName'), comboPrice: $('#comboPrice'), comboActive: $('#comboActive'), comboLimited: $('#comboLimited'), comboLimitedQty: $('#comboLimitedQty'), comboRemainingQty: $('#comboRemainingQty'), comboItemSelect: $('#comboItemSelect'), comboItemQty: $('#comboItemQty'), addComboLine: $('#addComboLine'),
@@ -616,6 +617,16 @@
                 el.itemShopField?.classList.add('d-none');
                 el.comboShopField?.classList.add('d-none');
                 el.categoryShopField?.classList.add('d-none');
+                if (el.shopsTab) {
+                    el.shopsTab.setAttribute('aria-hidden', 'true');
+                    el.shopsTab.setAttribute('tabindex', '-1');
+                    el.shopsTab.classList.add('d-none');
+                    el.shopsTab.closest('li')?.classList.add('d-none');
+                }
+                if (el.shopsPane) {
+                    el.shopsPane.setAttribute('aria-hidden', 'true');
+                    el.shopsPane.classList.add('d-none');
+                }
             }
             if (el.shopPassword) {
                 el.shopPassword.setAttribute('minlength', '6');
@@ -1673,7 +1684,6 @@
                 el.shopActive.checked = (shop?.isActive ?? true);
                 new bootstrap.Modal(el.shopModal).show();
             }
-            el.btnNewShop?.addEventListener('click', e => { e.preventDefault(); openShopModal(null); });
             async function upsertShop(action, id, payload) {
                 try {
                     const form = new URLSearchParams();
@@ -1717,37 +1727,39 @@
                     toast('刪除店家失敗：' + (err.message || err));
                 }
             }
-            el.saveShop?.addEventListener('click', async e => {
-                e.preventDefault();
-                const payload = {
-                    name: (el.shopName?.value || '').trim(),
-                    phone: (el.shopPhone?.value || '').trim(),
-                    account: (el.shopAccount?.value || '').trim(),
-                    password: (el.shopPassword?.value || '').trim(),
-                    addr: (el.shopAddr?.value || '').trim(),
-                    isActive: el.shopActive?.checked ?? true
-                };
-                if (!payload.name) {
-                    toast('店名必填');
-                    el.shopName?.focus();
-                    return;
-                }
-                const id = el.shopId?.value || '';
-                try {
-                    await upsertShop(id ? 'Update' : 'Create', id || null, payload);
-                    bootstrap.Modal.getInstance(el.shopModal)?.hide();
-                    loadShops(id ? state.shopsPage : 1);
-                } catch (err) {
-                    console.error('saveShop failed', err);
-                }
-            });
-
+            if (IS_ADMIN) {
+                el.btnNewShop?.addEventListener('click', e => { e.preventDefault(); openShopModal(null); });
+                el.btnSearchShops?.addEventListener('click', () => loadShops(1));
+                el.saveShop?.addEventListener('click', async e => {
+                    e.preventDefault();
+                    const payload = {
+                        name: (el.shopName?.value || '').trim(),
+                        phone: (el.shopPhone?.value || '').trim(),
+                        account: (el.shopAccount?.value || '').trim(),
+                        password: (el.shopPassword?.value || '').trim(),
+                        addr: (el.shopAddr?.value || '').trim(),
+                        isActive: el.shopActive?.checked ?? true
+                    };
+                    if (!payload.name) {
+                        toast('店名必填');
+                        el.shopName?.focus();
+                        return;
+                    }
+                    const id = el.shopId?.value || '';
+                    try {
+                        await upsertShop(id ? 'Update' : 'Create', id || null, payload);
+                        bootstrap.Modal.getInstance(el.shopModal)?.hide();
+                        loadShops(id ? state.shopsPage : 1);
+                    } catch (err) {
+                        console.error('saveShop failed', err);
+                    }
+                });
+            }
             // 事件與初始化
             el.btnSearchItems?.addEventListener('click', () => loadItems(1));
             el.btnSearchCategories?.addEventListener('click', () => loadCategories(1));
             el.btnSearchCombos?.addEventListener('click', () => loadCombos(1));
             el.btnSearchTables?.addEventListener('click', () => loadTables(1));
-            el.btnSearchShops?.addEventListener('click', () => loadShops(1));
             el.toggleDemo?.addEventListener('click', () => { state.demo = !state.demo; showDemoBanner(state.demo); if (state.demo) { toast('切至 Demo 模式'); } loadItems(); loadCategories(); loadCombos(); loadTables(); loadShops(); });
 
             document.getElementById('apiBaseText').textContent = apiBase || '(同網域)';
