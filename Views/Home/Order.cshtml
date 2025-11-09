@@ -327,15 +327,15 @@
 
 <script>
     (function () {
-        const tableSection = document.getElementById('tableSection');
-        const tableSelect = document.getElementById('tableSelect');
-        const tableHint = document.getElementById('tableHint');
-        const mealTable = document.getElementById('mealTable');
-        const mealList = document.getElementById('mealList');
-        const menuLoading = document.getElementById('menuLoading');
-        const orderResult = document.getElementById('orderResult');
-        const submitButton = document.getElementById('submitOrder');
-        const orderNotes = document.getElementById('orderNotes');
+        var tableSection = document.getElementById('tableSection');
+        var tableSelect = document.getElementById('tableSelect');
+        var tableHint = document.getElementById('tableHint');
+        var mealTable = document.getElementById('mealTable');
+        var mealList = document.getElementById('mealList');
+        var menuLoading = document.getElementById('menuLoading');
+        var orderResult = document.getElementById('orderResult');
+        var submitButton = document.getElementById('submitOrder');
+        var orderNotes = document.getElementById('orderNotes');
 
         function setOrderResult(message, type) {
             orderResult.textContent = message || '';
@@ -346,7 +346,7 @@
         }
 
         function toggleTableSection() {
-            const selectedType = document.querySelector('input[name="orderType"]:checked').value;
+            var selectedType = document.querySelector('input[name="orderType"]:checked').value;
             if (selectedType === 'DineIn') {
                 tableSection.style.display = '';
                 updateTableHint();
@@ -358,16 +358,16 @@
 
         function updateTableHint() {
             if (!tableHint) return;
-            const option = tableSelect.selectedOptions[0];
+            var option = tableSelect.selectedOptions[0];
             if (!option || !option.value) {
                 tableHint.textContent = '請先選擇桌號。';
                 tableHint.classList.remove('ok');
                 return;
             }
 
-            const shopName = option.dataset.shopName || '';
-            const zone = option.dataset.zone || '';
-            const labelParts = [];
+            var shopName = option.dataset.shopName || '';
+            var zone = option.dataset.zone || '';
+            var labelParts = [];
             if (shopName) labelParts.push(shopName);
             if (zone) labelParts.push(zone);
             tableHint.textContent = labelParts.length ? labelParts.join(' ｜ ') : '桌號已選擇。';
@@ -376,11 +376,11 @@
 
         function renderTables(tables) {
             tableSelect.innerHTML = '<option value="">請選擇桌號</option>';
-            tables.forEach(table => {
-                const option = document.createElement('option');
+            tables.forEach(function (table) {
+                var option = document.createElement('option');
                 option.value = table.Id;
-                const shopLabel = table.ShopName ? table.ShopName + '｜' : '';
-                const zoneLabel = table.Zone ? '（' + table.Zone + '）' : '';
+                var shopLabel = table.ShopName ? table.ShopName + '｜' : '';
+                var zoneLabel = table.Zone ? '（' + table.Zone + '）' : '';
                 option.textContent = shopLabel + '桌號 ' + table.Number + zoneLabel;
                 option.dataset.shopId = table.ShopId || '';
                 option.dataset.shopName = table.ShopName || '';
@@ -392,22 +392,22 @@
 
         function renderMeals(meals) {
             mealList.innerHTML = '';
-            meals.forEach(meal => {
-                const row = document.createElement('tr');
+            meals.forEach(function (meal) {
+                var row = document.createElement('tr');
                 row.dataset.mealId = meal.Id;
 
-                const nameCell = document.createElement('td');
+                var nameCell = document.createElement('td');
                 nameCell.className = 'meal-name';
                 nameCell.textContent = meal.Name;
                 row.appendChild(nameCell);
 
-                const priceCell = document.createElement('td');
+                var priceCell = document.createElement('td');
                 priceCell.className = 'meal-price';
                 priceCell.textContent = meal.Money != null ? '$' + Number(meal.Money).toFixed(0) : '-';
                 row.appendChild(priceCell);
 
-                const quantityCell = document.createElement('td');
-                const quantityInput = document.createElement('input');
+                var quantityCell = document.createElement('td');
+                var quantityInput = document.createElement('input');
                 quantityInput.type = 'number';
                 quantityInput.min = '0';
                 quantityInput.value = '0';
@@ -415,8 +415,8 @@
                 quantityCell.appendChild(quantityInput);
                 row.appendChild(quantityCell);
 
-                const noteCell = document.createElement('td');
-                const noteInput = document.createElement('input');
+                var noteCell = document.createElement('td');
+                var noteInput = document.createElement('input');
                 noteInput.type = 'text';
                 noteInput.placeholder = '備註 (可選)';
                 noteInput.className = 'meal-note';
@@ -435,32 +435,32 @@
 
         function loadTables() {
             fetch('@Url.Action("GetTable", "Home")?onlyActive=true')
-                .then(r => r.json())
+                .then(function (r) { return r.json(); })
                 .then(renderTables)
-                .catch(() => {
+                .catch(function () {
                     setOrderResult('無法載入桌號，請稍後再試。', 'error');
                 });
         }
 
         function loadMeals() {
             fetch('@Url.Action("GetMeals", "Home")?onlyActive=true')
-                .then(r => r.json())
-                .then(data => {
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
                     renderMeals(data);
                 })
-                .catch(() => {
+                .catch(function () {
                     menuLoading.textContent = '無法載入餐點，請稍後再試。';
                 });
         }
 
         function collectOrderItems() {
-            const rows = mealList.querySelectorAll('tr');
-            const items = [];
-            rows.forEach(row => {
-                const quantity = parseInt(row.querySelector('.meal-quantity').value, 10) || 0;
+            var rows = mealList.querySelectorAll('tr');
+            var items = [];
+            Array.prototype.forEach.call(rows, function (row) {
+                var quantity = parseInt(row.querySelector('.meal-quantity').value, 10) || 0;
                 if (quantity > 0) {
-                    const mealId = row.dataset.mealId;
-                    const note = row.querySelector('.meal-note').value.trim();
+                    var mealId = row.dataset.mealId;
+                    var note = row.querySelector('.meal-note').value.trim();
                     items.push({
                         mealId: mealId,
                         quantity: quantity,
@@ -473,16 +473,16 @@
 
         function submitOrder() {
             setOrderResult('', null);
-            const orderType = document.querySelector('input[name="orderType"]:checked').value;
-            const items = collectOrderItems();
+            var orderType = document.querySelector('input[name="orderType"]:checked').value;
+            var items = collectOrderItems();
 
             if (items.length === 0) {
                 setOrderResult('請至少選擇一項餐點。', 'error');
                 return;
             }
 
-            let tableId = null;
-            let shopId = null;
+            var tableId = null;
+            var shopId = null;
             if (orderType === 'DineIn') {
                 tableId = tableSelect.value;
                 if (!tableId) {
@@ -490,7 +490,7 @@
                     tableSelect.focus();
                     return;
                 }
-                const selectedOption = tableSelect.selectedOptions[0];
+                var selectedOption = tableSelect.selectedOptions[0];
                 shopId = selectedOption ? selectedOption.dataset.shopId || null : null;
             }
 
@@ -507,36 +507,46 @@
                     items: items
                 })
             })
-                .then(async response => {
-                    const payload = await response.json();
+                .then(function (response) {
+                    return response.json().then(function (payload) {
+                        return { payload: payload, response: response };
+                    });
+                })
+                .then(function (result) {
+                    var payload = result.payload;
+                    var response = result.response;
                     if (!response.ok || !payload.ok) {
                         throw new Error(payload.error || '送出訂單失敗');
                     }
 
-                    const order = payload.order;
+                    var order = payload.order;
                     if (order.orderType === 'TakeOut') {
                         setOrderResult('外帶訂單建立成功！取餐碼：' + order.takeoutCode, 'success');
                     } else {
-                        const label = order.tableNumber != null ? '桌號：' + order.tableNumber : '已收到您的內用訂單！';
+                        var label = order.tableNumber != null ? '桌號：' + order.tableNumber : '已收到您的內用訂單！';
                         setOrderResult('內用訂單建立成功！' + label, 'success');
                     }
 
-                    mealList.querySelectorAll('.meal-quantity').forEach(input => input.value = '0');
-                    mealList.querySelectorAll('.meal-note').forEach(input => input.value = '');
+                    Array.prototype.forEach.call(mealList.querySelectorAll('.meal-quantity'), function (input) {
+                        input.value = '0';
+                    });
+                    Array.prototype.forEach.call(mealList.querySelectorAll('.meal-note'), function (input) {
+                        input.value = '';
+                    });
                     orderNotes.value = '';
                     tableSelect.value = '';
                     updateTableHint();
                 })
-                .catch(err => {
+                .catch(function (err) {
                     setOrderResult(err.message, 'error');
                 })
-                .finally(() => {
+                .then(function () {
                     submitButton.disabled = false;
                 });
         }
 
-        document.querySelectorAll('input[name="orderType"]').forEach(input => {
-            input.addEventListener('change', () => {
+        Array.prototype.forEach.call(document.querySelectorAll('input[name="orderType"]'), function (input) {
+            input.addEventListener('change', function () {
                 toggleTableSection();
             });
         });
