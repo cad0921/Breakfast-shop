@@ -17,6 +17,52 @@ namespace breakfastshop.Controllers
             return View();
         }
 
+        [HttpPost]
+        public JsonResult Login(LoginRequest request)
+        {
+            try
+            {
+                if (request == null) throw new ArgumentException("缺少登入資料");
+
+                string account = request.Account?.Trim();
+                string password = request.Password?.Trim();
+
+                if (string.IsNullOrWhiteSpace(account) || string.IsNullOrWhiteSpace(password))
+                    throw new ArgumentException("帳號與密碼必填");
+
+                var sql = @"SELECT TOP 1 Id, Name, Account
+                            FROM dbo.Shop
+                            WHERE Account=@Account AND Password=@Password
+                              AND (IsActive IS NULL OR IsActive=1)";
+
+                var dt = _db.Query(sql, new Dictionary<string, object>
+                {
+                    ["Account"] = account,
+                    ["Password"] = password
+                });
+
+                if (dt.Rows.Count == 0)
+                {
+                    Response.StatusCode = 401;
+                    return Json(new { ok = false, error = "帳號或密碼錯誤" });
+                }
+
+                var row = dt.Rows[0];
+                return Json(new
+                {
+                    ok = true,
+                    id = row["Id"],
+                    name = row["Name"],
+                    account = row["Account"]
+                });
+            }
+            catch (Exception ex)
+            {
+                Response.StatusCode = 400;
+                return Json(new { ok = false, error = ex.Message });
+            }
+        }
+
         #region Meals
         [HttpGet]
         public JsonResult GetMeals(Guid? shopId, bool? onlyActive)
@@ -155,7 +201,7 @@ namespace breakfastshop.Controllers
         [HttpGet]
         public JsonResult GetShop(bool? onlyActive)
         {
-            var sql = @"SELECT Id, Name, Phone, Addr, IsActive, CreateDate, UpdateDate
+            var sql = @"SELECT Id, Name, Phone, Account, Password, Addr, IsActive, CreateDate, UpdateDate
                         FROM dbo.Shop
                         WHERE (@OnlyAct IS NULL OR IsActive=@OnlyAct)
                         ORDER BY Name ASC";
@@ -191,6 +237,8 @@ namespace breakfastshop.Controllers
 
                 data["Name"] = model.Name ?? (object)DBNull.Value;
                 data["Phone"] = model.Phone ?? (object)DBNull.Value;
+                data["Account"] = model.Account ?? (object)DBNull.Value;
+                data["Password"] = model.Password ?? (object)DBNull.Value;
                 data["Addr"] = model.Addr ?? (object)DBNull.Value;
                 if (model.IsActive.HasValue) data["IsActive"] = model.IsActive.Value;
                 data["UpdateDate"] = DateTime.UtcNow;
@@ -283,6 +331,12 @@ namespace breakfastshop.Controllers
     }
 
     // ===== DTOs =====
+    public class LoginRequest
+    {
+        public string Account { get; set; }
+        public string Password { get; set; }
+    }
+
     public class MealDto
     {
         public Guid Id { get; set; }
