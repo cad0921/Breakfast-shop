@@ -191,7 +191,7 @@ namespace breakfastshop.Controllers
         //點餐介面(分外帶、內用)
         public ActionResult Order(Guid? id, Guid? tableId)
         {
-            object presetTable = null;
+            PresetTableViewModel presetTable = null;
             bool lookupFailed = false;
 
             Guid? lookupId = tableId.HasValue && tableId.Value != Guid.Empty ? tableId : id;
@@ -215,7 +215,7 @@ namespace breakfastshop.Controllers
                     string zone = row["Zone"] == DBNull.Value ? null : row["Zone"].ToString();
                     string shopName = row["ShopName"] == DBNull.Value ? null : row["ShopName"].ToString();
 
-                    presetTable = new
+                    presetTable = new PresetTableViewModel
                     {
                         Id = tableId.ToString(),
                         ShopId = shopId?.ToString(),
