@@ -28,7 +28,7 @@ namespace breakfastshop.Controllers
             string hash = HashPassword(password);
             return string.Equals(hash, AdminPasswordHash, StringComparison.OrdinalIgnoreCase);
         }
-
+        
         private static string HashPassword(string value)
         {
             using (var sha = SHA256.Create())
@@ -43,9 +43,22 @@ namespace breakfastshop.Controllers
             }
         }
 
-        public ActionResult Index() { return View(); }
-        public ActionResult Backstage() { return View(); }
-        public ActionResult Order() {
+        public ActionResult Index() 
+        { 
+            return View(); 
+        }
+        public ActionResult Backstage() 
+        { 
+            return View(); 
+        }
+        //點餐介面(分外帶、內用)
+        public ActionResult Order() 
+        {
+            return View();
+        }
+        //接收訂單介面
+        public ActionResult Receiving()
+        {
             return View();
         }
         public ActionResult Login()
@@ -66,7 +79,7 @@ namespace breakfastshop.Controllers
                 if (string.IsNullOrWhiteSpace(account) || string.IsNullOrWhiteSpace(password))
                     throw new ArgumentException("帳號與密碼必填");
                 if (password.Length < 6)
-                    throw new ArgumentException("密碼至少 6 碼");
+                    throw new ArgumentException("密碼錯誤");
 
                 if (IsAdminAccount(account))
                 {
