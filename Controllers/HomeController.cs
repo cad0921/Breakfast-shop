@@ -198,6 +198,17 @@ namespace breakfastshop.Controllers
         {
             return View();
         }
+        protected override JsonResult Json(object data, string contentType, Encoding contentEncoding, JsonRequestBehavior behavior)
+        {
+            return new JsonResult
+            {
+                Data = data,
+                ContentType = string.IsNullOrWhiteSpace(contentType) ? "application/json" : contentType,
+                ContentEncoding = contentEncoding ?? Encoding.UTF8,
+                JsonRequestBehavior = behavior
+            };
+        }
+
         public ActionResult Login()
         {
             return View();
