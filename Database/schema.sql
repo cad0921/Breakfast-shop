@@ -290,3 +290,108 @@ BEGIN
     INNER JOIN inserted AS i ON o.Id = i.Id;
 END;
 GO
+
+/* ============================
+   Helper types & stored procedures for Orders
+   ============================ */
+IF OBJECT_ID(N'dbo.usp_UpdateOrderStatus', N'P') IS NOT NULL
+    DROP PROCEDURE dbo.usp_UpdateOrderStatus;
+GO
+
+IF OBJECT_ID(N'dbo.usp_CreateOrder', N'P') IS NOT NULL
+    DROP PROCEDURE dbo.usp_CreateOrder;
+GO
+
+IF TYPE_ID(N'dbo.OrderItemInputType') IS NOT NULL
+    DROP TYPE dbo.OrderItemInputType;
+GO
+
+CREATE TYPE dbo.OrderItemInputType AS TABLE
+(
+    MealId    UNIQUEIDENTIFIER NOT NULL,
+    MealName  NVARCHAR(100)    NULL,
+    Quantity  INT              NOT NULL,
+    UnitPrice DECIMAL(10,2)    NULL,
+    Notes     NVARCHAR(200)    NULL
+);
+GO
+
+CREATE PROCEDURE dbo.usp_CreateOrder
+(
+    @ShopId      UNIQUEIDENTIFIER,
+    @OrderType   NVARCHAR(20),
+    @TableId     UNIQUEIDENTIFIER = NULL,
+    @TakeoutCode NVARCHAR(20) = NULL,
+    @Notes       NVARCHAR(500) = NULL,
+    @Items       dbo.OrderItemInputType READONLY
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF EXISTS (SELECT 1 FROM @Items WHERE Quantity <= 0)
+        THROW 50001, N'Order item quantity must be greater than zero.', 1;
+
+    IF EXISTS (SELECT 1 FROM @Items WHERE UnitPrice IS NOT NULL AND UnitPrice < 0)
+        THROW 50002, N'Order item unit price must be non-negative.', 1;
+
+    IF EXISTS (
+        SELECT 1
+        FROM @Items AS i
+        LEFT JOIN dbo.Meals AS m ON m.Id = i.MealId
+        WHERE m.Id IS NULL
+    )
+        THROW 50003, N'One or more order items reference an invalid meal.', 1;
+
+    DECLARE @OrderId UNIQUEIDENTIFIER = NEWID();
+
+    INSERT INTO dbo.Orders (Id, ShopId, OrderType, TableId, TakeoutCode, Notes, Status)
+    VALUES (@OrderId, @ShopId, @OrderType, @TableId, @TakeoutCode, @Notes, N'Pending');
+
+    INSERT INTO dbo.OrderItems (Id, OrderId, MealId, MealName, Quantity, UnitPrice, Notes)
+    SELECT NEWID(),
+           @OrderId,
+           i.MealId,
+           COALESCE(i.MealName, m.Name),
+           i.Quantity,
+           COALESCE(i.UnitPrice, m.Money),
+           i.Notes
+    FROM @Items AS i
+    LEFT JOIN dbo.Meals AS m ON m.Id = i.MealId;
+
+    SELECT @OrderId AS OrderId;
+END;
+GO
+
+CREATE PROCEDURE dbo.usp_UpdateOrderStatus
+(
+    @OrderId UNIQUEIDENTIFIER,
+    @Status  NVARCHAR(20),
+    @Notes   NVARCHAR(500) = NULL
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    UPDATE dbo.Orders
+    SET Status = @Status,
+        Notes = COALESCE(@Notes, Notes)
+    WHERE Id = @OrderId;
+
+    IF @@ROWCOUNT = 0
+        THROW 50010, N'Order not found.', 1;
+
+    SELECT Id,
+           ShopId,
+           OrderType,
+           TableId,
+           TakeoutCode,
+           Notes,
+           Status,
+           CreatedAt,
+           UpdatedAt
+    FROM dbo.Orders
+    WHERE Id = @OrderId;
+END;
+GO
+
