@@ -1,5 +1,35 @@
 @{
     ViewBag.Title = "Order";
+    dynamic presetTable = ViewBag.PreselectedTable;
+    bool hasPresetTable = presetTable != null;
+    bool tableLookupFailed = ViewBag.TableLookupFailed == true;
+    string presetTableJson = hasPresetTable
+        ? System.Web.Helpers.Json.Encode(ViewBag.PreselectedTable)
+        : "null";
+    string presetTableId = hasPresetTable ? (presetTable.Id as string) : null;
+    string presetShopId = hasPresetTable ? (presetTable.ShopId as string) : null;
+    string presetShopName = hasPresetTable ? (presetTable.ShopName as string) : null;
+    string presetZone = hasPresetTable ? (presetTable.Zone as string) : null;
+    int? presetNumber = null;
+    if (hasPresetTable && presetTable.Number != null)
+    {
+        presetNumber = Convert.ToInt32(presetTable.Number);
+    }
+    var presetLabelParts = new System.Collections.Generic.List<string>();
+    if (!string.IsNullOrWhiteSpace(presetShopName))
+    {
+        presetLabelParts.Add(presetShopName);
+    }
+    if (presetNumber.HasValue)
+    {
+        var numberLabel = "桌號 " + presetNumber.Value;
+        if (!string.IsNullOrWhiteSpace(presetZone))
+        {
+            numberLabel += "（" + presetZone + "）";
+        }
+        presetLabelParts.Add(numberLabel);
+    }
+    string presetTableLabel = presetLabelParts.Count > 0 ? string.Join("｜", presetLabelParts) : "指定桌號";
 }
 
 <div class="order-page">
@@ -9,24 +39,38 @@
         <p class="order-hero__subtitle">選擇用餐方式並勾選喜歡的餐點，剩下的交給我們，新鮮熱騰騰上桌或快速取餐。</p>
     </div>
 
+    @if (tableLookupFailed && !hasPresetTable)
+    {
+        <div class="order-alert" role="alert">
+            找不到指定的桌號，連結可能已失效，已切換為外帶模式。
+        </div>
+    }
+
     <div class="order-layout">
         <div class="order-sidebar">
             <section class="section-card order-options">
                 <header class="section-title">用餐方式</header>
-                <label class="order-option">
-                    <input type="radio" name="orderType" value="DineIn" checked /> 內用
+                <label class="order-option@(hasPresetTable ? " is-locked" : string.Empty)">
+                    <input type="radio" name="orderType" value="DineIn" @(hasPresetTable ? "checked=\"checked\" disabled=\"disabled\"" : string.Empty) /> 內用
                 </label>
-                <label class="order-option">
-                    <input type="radio" name="orderType" value="TakeOut" /> 外帶
+                <label class="order-option@(hasPresetTable ? " is-disabled" : string.Empty)">
+                    <input type="radio" name="orderType" value="TakeOut" @(hasPresetTable ? "disabled=\"disabled\"" : "checked=\"checked\"") /> 外帶
                 </label>
             </section>
 
-            <section id="tableSection" class="section-card table-section">
+            <section id="tableSection" class="section-card table-section@(hasPresetTable ? " locked" : string.Empty)"@(hasPresetTable ? string.Empty : " style=\"display:none;\"")>
                 <header class="section-title">桌號</header>
-                <select id="tableSelect" class="table-select">
-                    <option value="">請選擇桌號</option>
+                <select id="tableSelect" class="table-select"@(hasPresetTable ? " disabled=\"disabled\"" : string.Empty)>
+                    @if (hasPresetTable)
+                    {
+                        <option value="@presetTableId" data-shop-id="@presetShopId" data-shop-name="@presetShopName" data-zone="@presetZone" selected>@presetTableLabel</option>
+                    }
+                    else
+                    {
+                        <option value="">請選擇桌號</option>
+                    }
                 </select>
-                <p id="tableHint" class="field-note">請先選擇桌號。</p>
+                <p id="tableHint" class="field-note@(hasPresetTable ? " ok locked" : string.Empty)">@(hasPresetTable ? (presetTableLabel + " ｜ 桌號已鎖定") : "請先選擇桌號。")</p>
             </section>
 
             <section class="section-card notes-section">
@@ -124,6 +168,15 @@
         grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
     }
 
+    .order-alert {
+        background: rgba(255, 202, 188, .35);
+        border: 1px solid rgba(255, 140, 102, .4);
+        border-radius: 14px;
+        color: #b54b32;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1.5rem;
+    }
+
     .order-sidebar {
         display: flex;
         flex-direction: column;
@@ -170,6 +223,24 @@
         box-shadow: 0 8px 20px rgba(249, 181, 49, .15);
     }
 
+    .order-option.is-disabled,
+    .order-option.is-locked {
+        opacity: .75;
+        cursor: not-allowed;
+        box-shadow: none;
+    }
+
+    .order-option.is-locked {
+        background: rgba(53, 184, 116, .2);
+        border: 1px solid rgba(53, 184, 116, .35);
+    }
+
+    .order-option.is-disabled:hover,
+    .order-option.is-locked:hover {
+        transform: none;
+        box-shadow: none;
+    }
+
     .order-option input[type="radio"] {
         accent-color: #ff9f1c;
         transform: scale(1.1);
@@ -198,6 +269,14 @@
         box-shadow: 0 0 0 .2rem rgba(255, 159, 28, .25);
     }
 
+    .table-select[disabled] {
+        background: rgba(255, 244, 218, .9);
+        cursor: not-allowed;
+        font-weight: 600;
+        color: #5b3a10;
+        box-shadow: inset 0 0 0 1px rgba(53, 184, 116, .25);
+    }
+
     textarea {
         resize: vertical;
         min-height: 120px;
@@ -212,6 +291,10 @@
 
     .field-note.ok {
         color: #2f8f5b;
+    }
+
+    .field-note.locked {
+        font-weight: 600;
     }
 
     .btn-primary {
@@ -336,6 +419,10 @@
         var orderResult = document.getElementById('orderResult');
         var submitButton = document.getElementById('submitOrder');
         var orderNotes = document.getElementById('orderNotes');
+        var presetTable = @Html.Raw(presetTableJson);
+        var hasPresetTable = !!presetTable;
+        var presetTableId = hasPresetTable ? String(presetTable.Id || presetTable.id || '') : null;
+        var normalizedPresetId = presetTableId ? presetTableId.toLowerCase() : null;
 
         function setOrderResult(message, type) {
             orderResult.textContent = message || '';
@@ -346,6 +433,13 @@
         }
 
         function toggleTableSection() {
+            if (hasPresetTable) {
+                if (tableSection) {
+                    tableSection.style.display = '';
+                }
+                updateTableHint();
+                return;
+            }
             var selectedType = document.querySelector('input[name="orderType"]:checked').value;
             if (selectedType === 'DineIn') {
                 tableSection.style.display = '';
@@ -358,10 +452,18 @@
 
         function updateTableHint() {
             if (!tableHint) return;
+            if (hasPresetTable) {
+                var lockedOption = tableSelect && tableSelect.selectedOptions ? tableSelect.selectedOptions[0] : null;
+                var lockedLabel = lockedOption ? lockedOption.textContent : '';
+                tableHint.textContent = lockedLabel ? lockedLabel + ' ｜ 桌號已鎖定' : '桌號已鎖定';
+                tableHint.classList.add('ok', 'locked');
+                return;
+            }
             var option = tableSelect.selectedOptions[0];
             if (!option || !option.value) {
                 tableHint.textContent = '請先選擇桌號。';
                 tableHint.classList.remove('ok');
+                tableHint.classList.remove('locked');
                 return;
             }
 
@@ -372,9 +474,67 @@
             if (zone) labelParts.push(zone);
             tableHint.textContent = labelParts.length ? labelParts.join(' ｜ ') : '桌號已選擇。';
             tableHint.classList.add('ok');
+            tableHint.classList.remove('locked');
+        }
+
+        function formatTableLabel(table) {
+            if (!table) return '';
+            var shopName = table.ShopName || table.shopName || '';
+            var zone = table.Zone || table.zone || '';
+            var number = table.Number != null ? table.Number : table.number;
+            var parts = [];
+            if (shopName) {
+                parts.push(shopName);
+            }
+            if (number !== undefined && number !== null && number !== '') {
+                var numberText = '桌號 ' + number;
+                if (zone) {
+                    numberText += '（' + zone + '）';
+                }
+                parts.push(numberText);
+            }
+            return parts.length ? parts.join('｜') : '指定桌號';
+        }
+
+        function applyPresetTable(table) {
+            if (!tableSection || !tableSelect || !table) return;
+            var id = table.Id || table.id;
+            if (!id) return;
+            var shopId = table.ShopId || table.shopId || '';
+            var shopName = table.ShopName || table.shopName || '';
+            var zone = table.Zone || table.zone || '';
+            var number = table.Number != null ? table.Number : table.number;
+
+            tableSelect.innerHTML = '';
+            var option = document.createElement('option');
+            option.value = id;
+            option.textContent = formatTableLabel({ ShopName: shopName, Number: number, Zone: zone });
+            option.selected = true;
+            option.dataset.shopId = shopId || '';
+            option.dataset.shopName = shopName || '';
+            option.dataset.zone = zone || '';
+            tableSelect.appendChild(option);
+            tableSelect.disabled = true;
+            tableSection.classList.add('locked');
+            updateTableHint();
         }
 
         function renderTables(tables) {
+            if (hasPresetTable) {
+                var lockedTable = null;
+                if (Array.isArray(tables) && normalizedPresetId) {
+                    for (var i = 0; i < tables.length; i++) {
+                        var candidate = tables[i];
+                        var candidateId = (candidate.Id || candidate.id || '').toString().toLowerCase();
+                        if (candidateId === normalizedPresetId) {
+                            lockedTable = candidate;
+                            break;
+                        }
+                    }
+                }
+                applyPresetTable(lockedTable || presetTable);
+                return;
+            }
             tableSelect.innerHTML = '<option value="">請選擇桌號</option>';
             tables.forEach(function (table) {
                 var option = document.createElement('option');
@@ -438,7 +598,9 @@
                 .then(function (r) { return r.json(); })
                 .then(renderTables)
                 .catch(function () {
-                    setOrderResult('無法載入桌號，請稍後再試。', 'error');
+                    if (!hasPresetTable) {
+                        setOrderResult('無法載入桌號，請稍後再試。', 'error');
+                    }
                 });
         }
 
@@ -534,7 +696,9 @@
                         input.value = '';
                     });
                     orderNotes.value = '';
-                    tableSelect.value = '';
+                    if (!hasPresetTable) {
+                        tableSelect.value = '';
+                    }
                     updateTableHint();
                 })
                 .catch(function (err) {
@@ -554,6 +718,9 @@
         tableSelect.addEventListener('change', updateTableHint);
         submitButton.addEventListener('click', submitOrder);
 
+        if (hasPresetTable) {
+            applyPresetTable(presetTable);
+        }
         toggleTableSection();
         loadTables();
         loadMeals();
