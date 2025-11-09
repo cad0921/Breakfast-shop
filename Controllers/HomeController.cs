@@ -189,8 +189,47 @@ namespace breakfastshop.Controllers
             return View(); 
         }
         //點餐介面(分外帶、內用)
-        public ActionResult Order() 
+        public ActionResult Order(Guid? id)
         {
+            object presetTable = null;
+            bool lookupFailed = false;
+
+            if (id.HasValue)
+            {
+                var dt = _db.Query(@"SELECT TOP 1 t.Id, t.ShopId, t.Number, t.Zone, s.Name AS ShopName
+        FROM dbo.[Table] AS t
+        LEFT JOIN dbo.Shop AS s ON t.ShopId = s.Id
+        WHERE t.Id=@Id AND t.IsActive=1", new Dictionary<string, object>
+                {
+                    ["Id"] = id.Value
+                });
+
+                if (dt.Rows.Count > 0)
+                {
+                    var row = dt.Rows[0];
+                    var tableId = (Guid)row["Id"];
+                    Guid? shopId = row["ShopId"] == DBNull.Value ? (Guid?)null : (Guid)row["ShopId"];
+                    int? number = row["Number"] == DBNull.Value ? (int?)null : Convert.ToInt32(row["Number"]);
+                    string zone = row["Zone"] == DBNull.Value ? null : row["Zone"].ToString();
+                    string shopName = row["ShopName"] == DBNull.Value ? null : row["ShopName"].ToString();
+
+                    presetTable = new
+                    {
+                        Id = tableId.ToString(),
+                        ShopId = shopId?.ToString(),
+                        Number = number,
+                        Zone = zone,
+                        ShopName = shopName
+                    };
+                }
+                else
+                {
+                    lookupFailed = true;
+                }
+            }
+
+            ViewBag.PreselectedTable = presetTable;
+            ViewBag.TableLookupFailed = lookupFailed;
             return View();
         }
         //接收訂單介面
