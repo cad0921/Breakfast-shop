@@ -30,6 +30,14 @@
         presetLabelParts.Add(numberLabel);
     }
     string presetTableLabel = presetLabelParts.Count > 0 ? string.Join("｜", presetLabelParts) : "指定桌號";
+    string dineInLabelClass = hasPresetTable ? " is-locked" : " is-disabled";
+    string dineInAttributes = hasPresetTable
+        ? "checked=\"checked\" disabled=\"disabled\""
+        : "disabled=\"disabled\"";
+    string takeoutLabelClass = hasPresetTable ? " is-disabled" : string.Empty;
+    string takeoutAttributes = hasPresetTable ? "disabled=\"disabled\"" : "checked=\"checked\"";
+    string lockedTableHint = presetTableLabel + " ｜ 桌號已鎖定";
+    string takeoutTableHint = "桌號會在掃描桌上 QR 碼後自動帶入。";
 }
 
 <div class="order-page">
@@ -50,27 +58,27 @@
         <div class="order-sidebar">
             <section class="section-card order-options">
                 <header class="section-title">用餐方式</header>
-                <label class="order-option@(hasPresetTable ? " is-locked" : string.Empty)">
-                    <input type="radio" name="orderType" value="DineIn" @(hasPresetTable ? "checked=\"checked\" disabled=\"disabled\"" : string.Empty) /> 內用
+                <label class="order-option@dineInLabelClass">
+                    <input type="radio" name="orderType" value="DineIn" @Html.Raw(dineInAttributes) /> 內用
                 </label>
-                <label class="order-option@(hasPresetTable ? " is-disabled" : string.Empty)">
-                    <input type="radio" name="orderType" value="TakeOut" @(hasPresetTable ? "disabled=\"disabled\"" : "checked=\"checked\"") /> 外帶
+                <label class="order-option@takeoutLabelClass">
+                    <input type="radio" name="orderType" value="TakeOut" @Html.Raw(takeoutAttributes) /> 外帶
                 </label>
             </section>
 
             <section id="tableSection" class="section-card table-section@(hasPresetTable ? " locked" : string.Empty)"@(hasPresetTable ? string.Empty : " style=\"display:none;\"")>
                 <header class="section-title">桌號</header>
-                <select id="tableSelect" class="table-select"@(hasPresetTable ? " disabled=\"disabled\"" : string.Empty)>
+                <select id="tableSelect" class="table-select" disabled="disabled">
                     @if (hasPresetTable)
                     {
                         <option value="@presetTableId" data-shop-id="@presetShopId" data-shop-name="@presetShopName" data-zone="@presetZone" selected>@presetTableLabel</option>
                     }
                     else
                     {
-                        <option value="">請選擇桌號</option>
+                        <option value="">桌號會在掃描桌上 QR 碼後自動帶入</option>
                     }
                 </select>
-                <p id="tableHint" class="field-note@(hasPresetTable ? " ok locked" : string.Empty)">@(hasPresetTable ? (presetTableLabel + " ｜ 桌號已鎖定") : "請先選擇桌號。")</p>
+                <p id="tableHint" class="field-note@(hasPresetTable ? " ok locked" : string.Empty)">@(hasPresetTable ? lockedTableHint : takeoutTableHint)</p>
             </section>
 
             <section class="section-card notes-section">
@@ -433,20 +441,16 @@
         }
 
         function toggleTableSection() {
+            if (!tableSection) return;
             if (hasPresetTable) {
-                if (tableSection) {
-                    tableSection.style.display = '';
-                }
+                tableSection.style.display = '';
                 updateTableHint();
                 return;
             }
-            var selectedType = document.querySelector('input[name="orderType"]:checked').value;
-            if (selectedType === 'DineIn') {
-                tableSection.style.display = '';
-                updateTableHint();
-            } else {
-                tableSection.style.display = 'none';
-                setOrderResult('', null);
+
+            tableSection.style.display = 'none';
+            if (tableSelect) {
+                tableSelect.value = '';
             }
         }
 
@@ -459,21 +463,8 @@
                 tableHint.classList.add('ok', 'locked');
                 return;
             }
-            var option = tableSelect.selectedOptions[0];
-            if (!option || !option.value) {
-                tableHint.textContent = '請先選擇桌號。';
-                tableHint.classList.remove('ok');
-                tableHint.classList.remove('locked');
-                return;
-            }
-
-            var shopName = option.dataset.shopName || '';
-            var zone = option.dataset.zone || '';
-            var labelParts = [];
-            if (shopName) labelParts.push(shopName);
-            if (zone) labelParts.push(zone);
-            tableHint.textContent = labelParts.length ? labelParts.join(' ｜ ') : '桌號已選擇。';
-            tableHint.classList.add('ok');
+            tableHint.textContent = '桌號會在掃描桌上 QR 碼後自動帶入。';
+            tableHint.classList.remove('ok');
             tableHint.classList.remove('locked');
         }
 
@@ -535,18 +526,8 @@
                 applyPresetTable(lockedTable || presetTable);
                 return;
             }
-            tableSelect.innerHTML = '<option value="">請選擇桌號</option>';
-            tables.forEach(function (table) {
-                var option = document.createElement('option');
-                option.value = table.Id;
-                var shopLabel = table.ShopName ? table.ShopName + '｜' : '';
-                var zoneLabel = table.Zone ? '（' + table.Zone + '）' : '';
-                option.textContent = shopLabel + '桌號 ' + table.Number + zoneLabel;
-                option.dataset.shopId = table.ShopId || '';
-                option.dataset.shopName = table.ShopName || '';
-                option.dataset.zone = table.Zone || '';
-                tableSelect.appendChild(option);
-            });
+            tableSelect.innerHTML = '<option value="">桌號會在掃描桌上 QR 碼後自動帶入</option>';
+            tableSelect.disabled = true;
             updateTableHint();
         }
 
@@ -715,7 +696,9 @@
             });
         });
 
-        tableSelect.addEventListener('change', updateTableHint);
+        if (tableSelect) {
+            tableSelect.addEventListener('change', updateTableHint);
+        }
         submitButton.addEventListener('click', submitOrder);
 
         if (hasPresetTable) {

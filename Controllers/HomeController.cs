@@ -189,19 +189,21 @@ namespace breakfastshop.Controllers
             return View(); 
         }
         //點餐介面(分外帶、內用)
-        public ActionResult Order(Guid? id)
+        public ActionResult Order(Guid? id, Guid? tableId)
         {
             object presetTable = null;
             bool lookupFailed = false;
 
-            if (id.HasValue)
+            Guid? lookupId = tableId.HasValue && tableId.Value != Guid.Empty ? tableId : id;
+
+            if (lookupId.HasValue)
             {
                 var dt = _db.Query(@"SELECT TOP 1 t.Id, t.ShopId, t.Number, t.Zone, s.Name AS ShopName
         FROM dbo.[Table] AS t
         LEFT JOIN dbo.Shop AS s ON t.ShopId = s.Id
         WHERE t.Id=@Id AND t.IsActive=1", new Dictionary<string, object>
                 {
-                    ["Id"] = id.Value
+                    ["Id"] = lookupId.Value
                 });
 
                 if (dt.Rows.Count > 0)
