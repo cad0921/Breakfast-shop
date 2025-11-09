@@ -122,14 +122,19 @@ GO
 CREATE TABLE dbo.[Table]
 (
     Id          UNIQUEIDENTIFIER NOT NULL CONSTRAINT DF_Table_Id DEFAULT (NEWID()),
+    ShopId      UNIQUEIDENTIFIER NOT NULL,
     Number      INT              NOT NULL,
+    Zone        NVARCHAR(50)     NULL,
     IsActive    BIT              NOT NULL CONSTRAINT DF_Table_IsActive DEFAULT (1),
     CreateDate  DATETIME2(0)     NOT NULL CONSTRAINT DF_Table_CreateDate DEFAULT (GETDATE()),
     UpdateDate  DATETIME2(0)     NOT NULL CONSTRAINT DF_Table_UpdateDate DEFAULT (GETDATE()),
     CONSTRAINT PK_Table PRIMARY KEY (Id),
-    CONSTRAINT UQ_Table_Number UNIQUE (Number),
-    CONSTRAINT CK_Table_Number CHECK (Number > 0)
+    CONSTRAINT UQ_Table_Shop_Number UNIQUE (ShopId, Number),
+    CONSTRAINT CK_Table_Number CHECK (Number > 0),
+    CONSTRAINT FK_Table_Shop FOREIGN KEY (ShopId)
+        REFERENCES dbo.Shop (Id) ON DELETE CASCADE
 );
+CREATE INDEX IX_Table_Shop ON dbo.[Table] (ShopId) INCLUDE (IsActive, Number);
 GO
 
 /* ============================
