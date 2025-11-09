@@ -1,4 +1,8 @@
-﻿/* Set padding to keep content from hitting the edges */
+body {
+    font-family: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", "Heiti TC", "Segoe UI", sans-serif;
+}
+
+/* Set padding to keep content from hitting the edges */
 .body-content {
     margin-top: 15px;
     padding-left: 15px;
