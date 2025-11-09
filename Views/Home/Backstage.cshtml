@@ -282,7 +282,7 @@
                     <div class="table-responsive">
                         <table class="table align-middle table-bordered">
                             <thead>
-                                <tr><th>#</th><th>桌碼</th><th>區域</th><th>狀態</th><th>操作</th></tr>
+                                <tr><th>#</th><th>店家</th><th>桌碼</th><th>區域</th><th>狀態</th><th>操作</th></tr>
                             </thead>
                             <tbody id="tablesBody"></tbody>
                         </table>
@@ -478,13 +478,19 @@
                 <div class="modal-body">
                     <form id="tableForm" class="row g-3">
                         <input type="hidden" id="tableId" />
+                        <div class="col-md-6" id="tableShopField">
+                            <label class="form-label">店家</label>
+                            <select id="tableShopId" class="form-select">
+                                <option value="">選擇店家…</option>
+                            </select>
+                        </div>
                         <div class="col-md-6">
                             <label class="form-label">桌號</label>
                             <input id="tableCode" type="number" min="1" step="1" class="form-control" required />
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">區域</label>
-                            <input id="tableZone" class="form-control" />
+                            <input id="tableZone" class="form-control" placeholder="例如：一樓、窗邊" />
                         </div>
                         <div class="col-md-12 d-flex align-items-center">
                             <div class="form-check form-switch">
@@ -607,7 +613,7 @@
                 comboLines: document.getElementById('comboLines'), // 用 getElementById，避免 querySelector 時機問題
                 saveCombo: $('#saveCombo'),
                 categoryModal: $('#categoryModal'), categoryForm: $('#categoryForm'), categoryId: $('#categoryId'), categoryName: $('#categoryName'), categorySort: $('#categorySort'), categoryActive: $('#categoryActive'), saveCategory: $('#saveCategory'), categoryShopId: $('#categoryShopId'), categoryShopField: $('#categoryShopField'),
-                tableModal: $('#tableModal'), tableForm: $('#tableForm'), tableId: $('#tableId'), tableCode: $('#tableCode'), tableZone: $('#tableZone'), tableActive: $('#tableActive'), saveTable: $('#saveTable'),
+                tableModal: $('#tableModal'), tableForm: $('#tableForm'), tableId: $('#tableId'), tableShopField: $('#tableShopField'), tableShopId: $('#tableShopId'), tableCode: $('#tableCode'), tableZone: $('#tableZone'), tableActive: $('#tableActive'), saveTable: $('#saveTable'),
                 shopModal: $('#shopModal'), shopForm: $('#shopForm'), shopId: $('#shopId'), shopName: $('#shopName'), shopPhone: $('#shopPhone'), shopAccount: $('#shopAccount'), shopPassword: $('#shopPassword'), shopAddr: $('#shopAddr'), shopActive: $('#shopActive'), saveShop: $('#saveShop'),
                 toggleDemo: $('#toggleDemo'),
             };
@@ -617,6 +623,7 @@
                 el.itemShopField?.classList.add('d-none');
                 el.comboShopField?.classList.add('d-none');
                 el.categoryShopField?.classList.add('d-none');
+                el.tableShopField?.classList.add('d-none');
                 if (el.shopsTab) {
                     el.shopsTab.setAttribute('aria-hidden', 'true');
                     el.shopsTab.setAttribute('tabindex', '-1');
@@ -690,6 +697,9 @@
             }
             function renderCategoryShopOptions(selectedId = '') {
                 fillShopSelect(el.categoryShopId, selectedId || (!IS_ADMIN ? SHOP_ID : ''));
+            }
+            function renderTableShopOptions(selectedId = '') {
+                fillShopSelect(el.tableShopId, selectedId || (!IS_ADMIN ? SHOP_ID : ''));
             }
             function renderItemCategoryOptions(selectedId = '', shopId = '') {
                 if (!el.itemCategoryId) return;
@@ -1453,6 +1463,8 @@
                     const rows = await res.json();
                     const mapped = rows.map(r => ({
                         id: r.Id,
+                        shopId: r.ShopId || '',
+                        shopName: r.ShopName || '',
                         code: String(r.Number ?? ''),
                         zone: r.Zone || '',
                         isActive: !!r.IsActive
@@ -1460,7 +1472,7 @@
                     state.tables = mapped;
 
                     const kw = (el.kwTables?.value || '').trim();
-                    let filtered = kw ? mapped.filter(x => (x.code || '').includes(kw) || (x.zone || '').includes(kw)) : mapped;
+                    let filtered = kw ? mapped.filter(x => (x.code || '').includes(kw) || (x.zone || '').includes(kw) || (x.shopName || '').includes(kw)) : mapped;
                     const actVal = el.activeTables?.value;
                     if (actVal !== undefined && actVal !== '') {
                         const flag = actVal === 'true';
@@ -1490,6 +1502,7 @@
                 body.innerHTML = items.map(t => `
               <tr>
                 <td>${t.id}</td>
+                <td>${t.shopName || ''}</td>
                 <td>${t.code}</td>
                 <td>${t.zone || ''}</td>
                 <td>${tag(!!t.isActive, '啟用', '停用')}</td>
@@ -1517,7 +1530,11 @@
             function openTableModal(t) {
                 el.tableForm?.reset();
                 if (!el.tableModal) return;
+                renderTableShopOptions(t?.shopId || (!IS_ADMIN ? SHOP_ID : ''));
                 el.tableId.value = t?.id || '';
+                if (el.tableShopId) {
+                    el.tableShopId.value = t?.shopId || (!IS_ADMIN ? SHOP_ID : (el.tableShopId.value || ''));
+                }
                 el.tableCode.value = t?.code || '';
                 if (el.tableZone) el.tableZone.value = t?.zone || '';
                 el.tableActive.checked = (t?.isActive ?? true);
@@ -1529,7 +1546,9 @@
                     const form = new URLSearchParams();
                     form.append('actionType', action);
                     form.append('model.Id', id || '');
+                    form.append('model.ShopId', payload.shopId || '');
                     form.append('model.Number', String(payload.number || ''));
+                    form.append('model.Zone', payload.zone || '');
                     form.append('model.IsActive', payload.isActive ? 'true' : 'false');
                     const res = await fetch('/Home/UpdateTable', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }, body: form.toString() });
                     if (!res.ok) throw new Error(await res.text());
@@ -1537,10 +1556,10 @@
                     if (state.demo) {
                         if (action === 'Create') {
                             const maxId = Math.max(0, ...state.tables.map(x => parseInt(x.id, 10) || 0));
-                            state.tables.push({ id: maxId + 1, code: payload.number.toString(), zone: payload.zone || '', isActive: payload.isActive });
+                            state.tables.push({ id: maxId + 1, shopId: payload.shopId, shopName: payload.shopName, code: payload.number.toString(), zone: payload.zone || '', isActive: payload.isActive });
                         } else if (action === 'Update') {
                             const target = state.tables.find(x => String(x.id) === String(id));
-                            if (target) Object.assign(target, { code: payload.number.toString(), zone: payload.zone || '', isActive: payload.isActive });
+                            if (target) Object.assign(target, { shopId: payload.shopId, shopName: payload.shopName, code: payload.number.toString(), zone: payload.zone || '', isActive: payload.isActive });
                         }
                         return;
                     }
@@ -1572,7 +1591,15 @@
                     el.tableCode?.focus();
                     return;
                 }
+                const shopId = el.tableShopId?.value || (!IS_ADMIN ? SHOP_ID : '');
+                if (!shopId) {
+                    toast('請選擇店家');
+                    el.tableShopId?.focus();
+                    return;
+                }
                 const payload = {
+                    shopId,
+                    shopName: el.tableShopId?.selectedOptions?.[0]?.textContent?.trim() || '',
                     number,
                     zone: (el.tableZone?.value || '').trim(),
                     isActive: el.tableActive?.checked ?? true
@@ -1607,6 +1634,7 @@
                     renderItemShopOptions(el.itemShopId?.value || '');
                     renderComboShopOptions(el.comboShopId?.value || '');
                     renderCategoryShopOptions(el.categoryShopId?.value || '');
+                    renderTableShopOptions(el.tableShopId?.value || '');
 
                     const kw = (el.kwShops?.value || '').trim();
                     const visible = IS_ADMIN ? mapped : mapped.filter(x => keyOf(x.id) === keyOf(SHOP_ID));

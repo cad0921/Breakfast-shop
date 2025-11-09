@@ -1,74 +1,335 @@
-﻿@{
+@{
     ViewBag.Title = "Order";
 }
 
 <div class="order-page">
-    <h2>點餐</h2>
-
-    <section class="order-options">
-        <h3>用餐方式</h3>
-        <label class="order-option">
-            <input type="radio" name="orderType" value="DineIn" checked /> 內用
-        </label>
-        <label class="order-option">
-            <input type="radio" name="orderType" value="TakeOut" /> 外帶
-        </label>
-    </section>
-
-    <section id="tableSection" class="table-section">
-        <h3>桌號</h3>
-        <select id="tableSelect" class="table-select">
-            <option value="">請選擇桌號</option>
-        </select>
-    </section>
-
-    <section class="notes-section">
-        <h3>訂單備註</h3>
-        <textarea id="orderNotes" rows="3" placeholder="例如：餐點請少冰"></textarea>
-    </section>
-
-    <section class="menu-section">
-        <h3>餐點</h3>
-        <div id="menuLoading" class="loading">載入餐點中…</div>
-        <table id="mealTable" class="menu-table" hidden>
-            <thead>
-                <tr>
-                    <th>名稱</th>
-                    <th>價格</th>
-                    <th>數量</th>
-                    <th>備註</th>
-                </tr>
-            </thead>
-            <tbody id="mealList"></tbody>
-        </table>
-    </section>
-
-    <div class="order-actions">
-        <button id="submitOrder" type="button">送出訂單</button>
+    <div class="order-hero">
+        <span class="order-hero__badge">早餐點餐</span>
+        <h2 class="order-hero__title">現點現做，活力美味早晨</h2>
+        <p class="order-hero__subtitle">選擇用餐方式並勾選喜歡的餐點，剩下的交給我們，新鮮熱騰騰上桌或快速取餐。</p>
     </div>
 
-    <div id="orderResult" class="order-result" role="status"></div>
+    <div class="order-layout">
+        <div class="order-sidebar">
+            <section class="section-card order-options">
+                <header class="section-title">用餐方式</header>
+                <label class="order-option">
+                    <input type="radio" name="orderType" value="DineIn" checked /> 內用
+                </label>
+                <label class="order-option">
+                    <input type="radio" name="orderType" value="TakeOut" /> 外帶
+                </label>
+            </section>
+
+            <section id="tableSection" class="section-card table-section">
+                <header class="section-title">桌號</header>
+                <select id="tableSelect" class="table-select">
+                    <option value="">請選擇桌號</option>
+                </select>
+                <p id="tableHint" class="field-note">請先選擇桌號。</p>
+            </section>
+
+            <section class="section-card notes-section">
+                <header class="section-title">訂單備註</header>
+                <textarea id="orderNotes" rows="4" placeholder="例如：餐點請少冰、紙袋裝外帶"></textarea>
+                <p class="field-note">若有過敏原或其他需求，歡迎寫在這裡。</p>
+            </section>
+
+            <div class="section-card order-actions">
+                <button id="submitOrder" type="button" class="btn-primary">送出訂單</button>
+                <div id="orderResult" class="order-result" role="status" aria-live="polite"></div>
+            </div>
+        </div>
+
+        <section class="section-card menu-section">
+            <header class="section-title d-flex">
+                <span>餐點選擇</span>
+                <span id="menuLoading" class="loading">載入餐點中…</span>
+            </header>
+            <table id="mealTable" class="menu-table" hidden>
+                <thead>
+                    <tr>
+                        <th>餐點</th>
+                        <th>價格</th>
+                        <th style="width: 110px">數量</th>
+                        <th>備註</th>
+                    </tr>
+                </thead>
+                <tbody id="mealList"></tbody>
+            </table>
+        </section>
+    </div>
 </div>
 
 <style>
-    .order-page { max-width: 960px; margin: 0 auto; padding: 1rem; }
-    .order-options, .table-section, .menu-section, .notes-section { margin-bottom: 1.5rem; }
-    .order-option { margin-right: 1rem; font-weight: 600; }
-    .table-select { min-width: 200px; padding: 0.25rem 0.5rem; }
-    .menu-table { width: 100%; border-collapse: collapse; }
-    .menu-table th, .menu-table td { border: 1px solid #ddd; padding: 0.5rem; text-align: left; }
-    .menu-table input[type="number"], .menu-table input[type="text"] { width: 100%; box-sizing: border-box; }
-    .order-actions { margin-top: 1.5rem; }
-    #submitOrder { padding: 0.75rem 1.5rem; font-size: 1rem; }
-    .order-result { margin-top: 1rem; min-height: 1.5rem; font-weight: 600; }
-    .loading { color: #777; }
-    textarea { width: 100%; box-sizing: border-box; padding: 0.5rem; }
+    .order-page {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 2.5rem 1.5rem 4rem;
+        color: #4b2e05;
+        background: radial-gradient(900px 480px at 85% 5%, rgba(255,228,161,.45), transparent 70%),
+            radial-gradient(720px 420px at 5% 20%, rgba(255,243,204,.7), transparent 70%),
+            #fff9ec;
+    }
+
+    .order-hero {
+        background: linear-gradient(120deg, rgba(255, 206, 120, .95), rgba(255, 236, 178, .92));
+        border-radius: 18px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 18px 32px rgba(249, 181, 49, .25);
+        color: #5b3a10;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .order-hero::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(240px at 90% 10%, rgba(255,255,255,.45), transparent 55%);
+        pointer-events: none;
+    }
+
+    .order-hero__badge {
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        font-weight: 600;
+        padding: .35rem .9rem;
+        background: rgba(255, 255, 255, .65);
+        border-radius: 999px;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        font-size: .75rem;
+        color: #9d5c06;
+    }
+
+    .order-hero__title {
+        margin: 1rem 0 .5rem;
+        font-size: 2rem;
+        font-weight: 700;
+    }
+
+    .order-hero__subtitle {
+        margin: 0;
+        font-size: 1rem;
+        color: rgba(75, 46, 5, .85);
+        max-width: 640px;
+    }
+
+    .order-layout {
+        display: grid;
+        gap: 1.5rem;
+        grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
+    }
+
+    .order-sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+
+    .section-card {
+        background: rgba(255, 255, 255, .92);
+        border-radius: 18px;
+        padding: 1.5rem;
+        box-shadow: 0 12px 26px rgba(249, 181, 49, .18);
+        border: 1px solid rgba(247, 188, 67, .25);
+    }
+
+    .section-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        color: #9d5c06;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .section-title.d-flex {
+        gap: .75rem;
+    }
+
+    .order-option {
+        display: flex;
+        align-items: center;
+        gap: .5rem;
+        padding: .6rem 1rem;
+        border-radius: 12px;
+        background: rgba(255, 244, 218, .7);
+        margin-bottom: .75rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform .15s ease, box-shadow .15s ease;
+    }
+
+    .order-option:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(249, 181, 49, .15);
+    }
+
+    .order-option input[type="radio"] {
+        accent-color: #ff9f1c;
+        transform: scale(1.1);
+    }
+
+    .table-select,
+    textarea,
+    .menu-table input[type="number"],
+    .menu-table input[type="text"] {
+        width: 100%;
+        border-radius: 12px;
+        border: 1px solid rgba(247, 188, 67, .35);
+        padding: .6rem .75rem;
+        font-size: 1rem;
+        background: #fffdfa;
+        color: #5b3a10;
+        transition: border-color .2s ease, box-shadow .2s ease;
+    }
+
+    .table-select:focus,
+    textarea:focus,
+    .menu-table input[type="number"]:focus,
+    .menu-table input[type="text"]:focus {
+        outline: none;
+        border-color: #ff9f1c;
+        box-shadow: 0 0 0 .2rem rgba(255, 159, 28, .25);
+    }
+
+    textarea {
+        resize: vertical;
+        min-height: 120px;
+    }
+
+    .field-note {
+        margin-top: .5rem;
+        margin-bottom: 0;
+        font-size: .85rem;
+        color: rgba(75, 46, 5, .55);
+    }
+
+    .field-note.ok {
+        color: #2f8f5b;
+    }
+
+    .btn-primary {
+        width: 100%;
+        padding: .85rem 1.5rem;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #ff9f1c, #ffbf69);
+        border: none;
+        color: #fff;
+        font-weight: 700;
+        font-size: 1.05rem;
+        letter-spacing: .02em;
+        cursor: pointer;
+        transition: transform .15s ease, box-shadow .15s ease;
+    }
+
+    .btn-primary:hover:not([disabled]) {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 24px rgba(255, 159, 28, .3);
+    }
+
+    .btn-primary[disabled] {
+        opacity: .6;
+        cursor: not-allowed;
+        box-shadow: none;
+    }
+
+    .order-actions {
+        display: flex;
+        flex-direction: column;
+        gap: .75rem;
+        align-items: stretch;
+    }
+
+    .order-result {
+        min-height: 2.5rem;
+        border-radius: 12px;
+        padding: .75rem 1rem;
+        font-weight: 600;
+        background: rgba(255, 255, 255, .65);
+        color: #a76a15;
+        border: 1px dashed rgba(249, 181, 49, .35);
+    }
+
+    .order-result.success {
+        color: #26724b;
+        background: rgba(53, 184, 116, .15);
+        border-color: rgba(53, 184, 116, .3);
+    }
+
+    .order-result.error {
+        color: #b54b32;
+        background: rgba(255, 202, 188, .3);
+        border-color: rgba(255, 140, 102, .35);
+    }
+
+    .menu-section {
+        min-height: 100%;
+    }
+
+    .menu-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        background: rgba(255, 255, 255, .8);
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: inset 0 0 0 1px rgba(247, 188, 67, .15);
+    }
+
+    .menu-table thead {
+        background: rgba(255, 210, 120, .35);
+    }
+
+    .menu-table th,
+    .menu-table td {
+        padding: .85rem .9rem;
+        text-align: left;
+        border-bottom: 1px solid rgba(247, 188, 67, .18);
+    }
+
+    .menu-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .menu-table input[type="number"] {
+        text-align: center;
+    }
+
+    .menu-table input[type="text"] {
+        font-size: .95rem;
+    }
+
+    .loading {
+        font-size: .9rem;
+        color: rgba(75, 46, 5, .55);
+    }
+
+    @media (max-width: 900px) {
+        .order-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .order-sidebar {
+            order: 2;
+        }
+
+        .menu-section {
+            order: 1;
+        }
+    }
 </style>
 
 <script>
     (function () {
         const tableSection = document.getElementById('tableSection');
         const tableSelect = document.getElementById('tableSelect');
+        const tableHint = document.getElementById('tableHint');
         const mealTable = document.getElementById('mealTable');
         const mealList = document.getElementById('mealList');
         const menuLoading = document.getElementById('menuLoading');
@@ -76,13 +337,41 @@
         const submitButton = document.getElementById('submitOrder');
         const orderNotes = document.getElementById('orderNotes');
 
+        function setOrderResult(message, type) {
+            orderResult.textContent = message || '';
+            orderResult.className = 'order-result';
+            if (type) {
+                orderResult.classList.add(type);
+            }
+        }
+
         function toggleTableSection() {
             const selectedType = document.querySelector('input[name="orderType"]:checked').value;
             if (selectedType === 'DineIn') {
                 tableSection.style.display = '';
+                updateTableHint();
             } else {
                 tableSection.style.display = 'none';
+                setOrderResult('', null);
             }
+        }
+
+        function updateTableHint() {
+            if (!tableHint) return;
+            const option = tableSelect.selectedOptions[0];
+            if (!option || !option.value) {
+                tableHint.textContent = '請先選擇桌號。';
+                tableHint.classList.remove('ok');
+                return;
+            }
+
+            const shopName = option.dataset.shopName || '';
+            const zone = option.dataset.zone || '';
+            const labelParts = [];
+            if (shopName) labelParts.push(shopName);
+            if (zone) labelParts.push(zone);
+            tableHint.textContent = labelParts.length ? labelParts.join(' ｜ ') : '桌號已選擇。';
+            tableHint.classList.add('ok');
         }
 
         function renderTables(tables) {
@@ -90,9 +379,15 @@
             tables.forEach(table => {
                 const option = document.createElement('option');
                 option.value = table.Id;
-                option.textContent = '桌號 ' + table.Number;
+                const shopLabel = table.ShopName ? table.ShopName + '｜' : '';
+                const zoneLabel = table.Zone ? '（' + table.Zone + '）' : '';
+                option.textContent = shopLabel + '桌號 ' + table.Number + zoneLabel;
+                option.dataset.shopId = table.ShopId || '';
+                option.dataset.shopName = table.ShopName || '';
+                option.dataset.zone = table.Zone || '';
                 tableSelect.appendChild(option);
             });
+            updateTableHint();
         }
 
         function renderMeals(meals) {
@@ -102,10 +397,12 @@
                 row.dataset.mealId = meal.Id;
 
                 const nameCell = document.createElement('td');
+                nameCell.className = 'meal-name';
                 nameCell.textContent = meal.Name;
                 row.appendChild(nameCell);
 
                 const priceCell = document.createElement('td');
+                priceCell.className = 'meal-price';
                 priceCell.textContent = meal.Money != null ? '$' + Number(meal.Money).toFixed(0) : '-';
                 row.appendChild(priceCell);
 
@@ -140,7 +437,9 @@
             fetch('@Url.Action("GetTable", "Home")?onlyActive=true')
                 .then(r => r.json())
                 .then(renderTables)
-                .catch(() => { orderResult.textContent = '無法載入桌號，請稍後再試。'; });
+                .catch(() => {
+                    setOrderResult('無法載入桌號，請稍後再試。', 'error');
+                });
         }
 
         function loadMeals() {
@@ -173,22 +472,26 @@
         }
 
         function submitOrder() {
-            orderResult.textContent = '';
+            setOrderResult('', null);
             const orderType = document.querySelector('input[name="orderType"]:checked').value;
             const items = collectOrderItems();
 
             if (items.length === 0) {
-                orderResult.textContent = '請至少選擇一項餐點。';
+                setOrderResult('請至少選擇一項餐點。', 'error');
                 return;
             }
 
             let tableId = null;
+            let shopId = null;
             if (orderType === 'DineIn') {
                 tableId = tableSelect.value;
                 if (!tableId) {
-                    orderResult.textContent = '請選擇桌號。';
+                    setOrderResult('請選擇桌號。', 'error');
+                    tableSelect.focus();
                     return;
                 }
+                const selectedOption = tableSelect.selectedOptions[0];
+                shopId = selectedOption ? selectedOption.dataset.shopId || null : null;
             }
 
             submitButton.disabled = true;
@@ -199,6 +502,7 @@
                 body: JSON.stringify({
                     orderType: orderType,
                     tableId: tableId,
+                    shopId: shopId,
                     notes: orderNotes.value.trim(),
                     items: items
                 })
@@ -211,17 +515,20 @@
 
                     const order = payload.order;
                     if (order.orderType === 'TakeOut') {
-                        orderResult.textContent = '外帶訂單建立成功！取餐碼：' + order.takeoutCode;
+                        setOrderResult('外帶訂單建立成功！取餐碼：' + order.takeoutCode, 'success');
                     } else {
-                        orderResult.textContent = '內用訂單建立成功！桌號：' + order.tableNumber;
+                        const label = order.tableNumber != null ? '桌號：' + order.tableNumber : '已收到您的內用訂單！';
+                        setOrderResult('內用訂單建立成功！' + label, 'success');
                     }
 
                     mealList.querySelectorAll('.meal-quantity').forEach(input => input.value = '0');
                     mealList.querySelectorAll('.meal-note').forEach(input => input.value = '');
                     orderNotes.value = '';
+                    tableSelect.value = '';
+                    updateTableHint();
                 })
                 .catch(err => {
-                    orderResult.textContent = err.message;
+                    setOrderResult(err.message, 'error');
                 })
                 .finally(() => {
                     submitButton.disabled = false;
@@ -229,9 +536,12 @@
         }
 
         document.querySelectorAll('input[name="orderType"]').forEach(input => {
-            input.addEventListener('change', toggleTableSection);
+            input.addEventListener('change', () => {
+                toggleTableSection();
+            });
         });
 
+        tableSelect.addEventListener('change', updateTableHint);
         submitButton.addEventListener('click', submitOrder);
 
         toggleTableSection();
