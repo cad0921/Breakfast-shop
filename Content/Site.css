@@ -18,3 +18,133 @@ select,
 textarea {
     max-width: 280px;
 }
+
+.order-page {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.order-hero {
+    background: linear-gradient(135deg, rgba(255, 214, 102, 0.4), rgba(255, 244, 228, 0.9));
+    border: 1px solid rgba(255, 193, 7, 0.25);
+}
+
+.order-hero-card {
+    background: #fff8e6;
+    border: 1px solid rgba(255, 193, 7, 0.35);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+}
+
+.order-hero-card .order-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #f08a24;
+    display: inline-block;
+}
+
+.category-panel .category-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.category-panel .btn {
+    border-radius: 999px;
+}
+
+.category-panel .btn.active {
+    color: #fff;
+}
+
+.menu-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border-radius: 1rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.menu-card:hover,
+.menu-card.in-cart {
+    transform: translateY(-4px);
+    box-shadow: 0 1.25rem 1.5rem -1.5rem rgba(0, 0, 0, 0.35);
+    border-color: rgba(13, 110, 253, 0.25);
+}
+
+.menu-card .badge {
+    font-size: 0.85rem;
+}
+
+.quantity-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.125rem 0.25rem;
+    border-radius: 999px;
+    background-color: rgba(13, 110, 253, 0.08);
+}
+
+.quantity-control .quantity-count {
+    min-width: 1.5rem;
+    text-align: center;
+    font-weight: 600;
+}
+
+.quantity-control .btn {
+    min-width: 2.25rem;
+}
+
+.cart-card {
+    border-radius: 1rem;
+}
+
+.cart-item span {
+    font-size: 0.95rem;
+}
+
+@media (max-width: 991.98px) {
+    .order-layout > aside:last-child {
+        order: 3;
+    }
+
+    .order-layout > section {
+        order: 2;
+    }
+
+    .category-panel {
+        position: sticky;
+        top: 0.5rem;
+        z-index: 1;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .category-panel .category-list {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding-bottom: 0.25rem;
+    }
+
+    .category-panel .category-list::-webkit-scrollbar {
+        height: 4px;
+    }
+
+    .category-panel .category-list::-webkit-scrollbar-thumb {
+        background-color: rgba(0, 0, 0, 0.2);
+        border-radius: 999px;
+    }
+}
+
+.cart-card .cart-items {
+    max-height: 18rem;
+    overflow-y: auto;
+}
+
+.cart-card .cart-items::-webkit-scrollbar {
+    width: 6px;
+}
+
+.cart-card .cart-items::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.15);
+    border-radius: 999px;
+}
