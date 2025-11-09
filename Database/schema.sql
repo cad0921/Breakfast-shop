@@ -14,8 +14,12 @@ GO
    ============================ */
 IF OBJECT_ID(N'dbo.FK_Meals_Shop', N'F') IS NOT NULL
     ALTER TABLE dbo.Meals DROP CONSTRAINT FK_Meals_Shop;
+IF OBJECT_ID(N'dbo.FK_Meals_Category', N'F') IS NOT NULL
+    ALTER TABLE dbo.Meals DROP CONSTRAINT FK_Meals_Category;
 IF OBJECT_ID(N'dbo.FK_Combo_Shop', N'F') IS NOT NULL
     ALTER TABLE dbo.Combo DROP CONSTRAINT FK_Combo_Shop;
+IF OBJECT_ID(N'dbo.FK_MealCategory_Shop', N'F') IS NOT NULL
+    ALTER TABLE dbo.MealCategory DROP CONSTRAINT FK_MealCategory_Shop;
 GO
 
 /* ============================
@@ -24,6 +28,7 @@ GO
 IF OBJECT_ID(N'dbo.Meals', N'U') IS NOT NULL DROP TABLE dbo.Meals;
 IF OBJECT_ID(N'dbo.Combo', N'U') IS NOT NULL DROP TABLE dbo.Combo;
 IF OBJECT_ID(N'dbo.[Table]', N'U') IS NOT NULL DROP TABLE dbo.[Table];
+IF OBJECT_ID(N'dbo.MealCategory', N'U') IS NOT NULL DROP TABLE dbo.MealCategory;
 IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Shop_Account' AND object_id = OBJECT_ID(N'dbo.Shop'))
     DROP INDEX IX_Shop_Account ON dbo.Shop;
 IF OBJECT_ID(N'dbo.Shop', N'U') IS NOT NULL DROP TABLE dbo.Shop;
@@ -52,6 +57,27 @@ CREATE UNIQUE INDEX IX_Shop_Account ON dbo.Shop (Account) WHERE Account IS NOT N
 GO
 
 /* ============================
+   MealCategory
+   ============================ */
+CREATE TABLE dbo.MealCategory
+(
+    Id          UNIQUEIDENTIFIER NOT NULL CONSTRAINT DF_MealCategory_Id DEFAULT (NEWSEQUENTIALID()),
+    ShopId      UNIQUEIDENTIFIER NOT NULL,
+    Name        NVARCHAR(50)     NOT NULL,
+    SortOrder   INT              NOT NULL CONSTRAINT DF_MealCategory_SortOrder DEFAULT (0),
+    IsActive    BIT              NOT NULL CONSTRAINT DF_MealCategory_IsActive DEFAULT (1),
+    CreateDate  DATETIME2(0)     NOT NULL CONSTRAINT DF_MealCategory_CreateDate DEFAULT (SYSUTCDATETIME()),
+    UpdateDate  DATETIME2(0)     NOT NULL CONSTRAINT DF_MealCategory_UpdateDate DEFAULT (SYSUTCDATETIME()),
+    CONSTRAINT PK_MealCategory PRIMARY KEY (Id),
+    CONSTRAINT FK_MealCategory_Shop FOREIGN KEY (ShopId)
+        REFERENCES dbo.Shop (Id) ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX IX_MealCategory_Shop_Name ON dbo.MealCategory (ShopId, Name);
+CREATE INDEX IX_MealCategory_Shop_Active ON dbo.MealCategory (ShopId, IsActive) INCLUDE (Name, SortOrder);
+GO
+
+/* ============================
    Meals
    ============================ */
 CREATE TABLE dbo.Meals
@@ -64,14 +90,18 @@ CREATE TABLE dbo.Meals
     CreateDate  DATETIME2(0)     NOT NULL CONSTRAINT DF_Meals_CreateDate DEFAULT (SYSUTCDATETIME()),
     UpdateDate  DATETIME2(0)     NOT NULL CONSTRAINT DF_Meals_UpdateDate DEFAULT (SYSUTCDATETIME()),
     Element     NVARCHAR(200)    NULL,
+    CategoryId  UNIQUEIDENTIFIER NULL,
     CONSTRAINT PK_Meals PRIMARY KEY (Id),
     CONSTRAINT FK_Meals_Shop FOREIGN KEY (ShopId)
         REFERENCES dbo.Shop (Id) ON DELETE CASCADE,
+    CONSTRAINT FK_Meals_Category FOREIGN KEY (CategoryId)
+        REFERENCES dbo.MealCategory (Id) ON DELETE SET NULL,
     CONSTRAINT CK_Meals_Money CHECK (Money >= 0)
 );
 
 CREATE UNIQUE INDEX IX_Meals_Shop_Name ON dbo.Meals (ShopId, Name);
 CREATE INDEX IX_Meals_Shop_Active ON dbo.Meals (ShopId, IsActive) INCLUDE (Name, Money);
+CREATE INDEX IX_Meals_Category ON dbo.Meals (CategoryId);
 GO
 
 /* ============================
@@ -81,7 +111,8 @@ CREATE TABLE dbo.Combo
 (
     Id          UNIQUEIDENTIFIER NOT NULL CONSTRAINT DF_Combo_Id DEFAULT (NEWSEQUENTIALID()),
     ShopId      UNIQUEIDENTIFIER NOT NULL,
-    ComboMeal   NVARCHAR(200)    NOT NULL,
+    Title       NVARCHAR(100)    NOT NULL CONSTRAINT DF_Combo_Title DEFAULT (''),
+    ComboMeal   NVARCHAR(MAX)    NULL,
     Money       DECIMAL(10,2)    NOT NULL CONSTRAINT DF_Combo_Money DEFAULT (0),
     IsActive    BIT              NOT NULL CONSTRAINT DF_Combo_IsActive DEFAULT (1),
     CreateDate  DATETIME2(0)     NOT NULL CONSTRAINT DF_Combo_CreateDate DEFAULT (SYSUTCDATETIME()),
@@ -92,7 +123,7 @@ CREATE TABLE dbo.Combo
     CONSTRAINT CK_Combo_Money CHECK (Money >= 0)
 );
 
-CREATE UNIQUE INDEX IX_Combo_Shop_Name ON dbo.Combo (ShopId, ComboMeal);
+CREATE UNIQUE INDEX IX_Combo_Shop_Name ON dbo.Combo (ShopId, Title);
 CREATE INDEX IX_Combo_Shop_Active ON dbo.Combo (ShopId, IsActive) INCLUDE (Money);
 GO
 
@@ -136,6 +167,18 @@ BEGIN
     UPDATE m SET UpdateDate = SYSUTCDATETIME()
     FROM dbo.Meals AS m
     INNER JOIN inserted AS i ON m.Id = i.Id;
+END;
+GO
+
+CREATE OR ALTER TRIGGER TR_MealCategory_SetUpdateDate
+ON dbo.MealCategory
+AFTER UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE c SET UpdateDate = SYSUTCDATETIME()
+    FROM dbo.MealCategory AS c
+    INNER JOIN inserted AS i ON c.Id = i.Id;
 END;
 GO
 

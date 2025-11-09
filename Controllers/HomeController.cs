@@ -29,6 +29,8 @@ namespace breakfastshop.Controllers
 
                 if (string.IsNullOrWhiteSpace(account) || string.IsNullOrWhiteSpace(password))
                     throw new ArgumentException("帳號與密碼必填");
+                if (password.Length < 6)
+                    throw new ArgumentException("密碼至少 6 碼");
 
                 var sql = @"SELECT TOP 1 Id, Name, Account
                             FROM dbo.Shop
@@ -67,12 +69,13 @@ namespace breakfastshop.Controllers
         [HttpGet]
         public JsonResult GetMeals(Guid? shopId, bool? onlyActive)
         {
-            var sql = @"SELECT m.Id, m.ShopId, s.Name AS ShopName, m.Name, m.Money, m.IsActive, m.Element, m.CreateDate, m.UpdateDate
+            var sql = @"SELECT m.Id, m.ShopId, s.Name AS ShopName, m.Name, m.Money, m.IsActive, m.Element, m.CategoryId, cat.Name AS CategoryName, m.CreateDate, m.UpdateDate
                         FROM dbo.Meals AS m
                         LEFT JOIN dbo.Shop AS s ON m.ShopId = s.Id
+                        LEFT JOIN dbo.MealCategory AS cat ON m.CategoryId = cat.Id
                         WHERE (@ShopId IS NULL OR m.ShopId=@ShopId)
                           AND (@OnlyAct IS NULL OR m.IsActive=@OnlyAct)
-                        ORDER BY m.Name ASC";
+                        ORDER BY ISNULL(cat.SortOrder, 0) ASC, m.Name ASC";
             var dt = _db.Query(sql, new Dictionary<string, object>
             {
                 ["ShopId"] = (object)shopId ?? DBNull.Value,
@@ -114,6 +117,10 @@ namespace breakfastshop.Controllers
                 if (model.Money.HasValue) data["Money"] = model.Money.Value;
                 if (model.IsActive.HasValue) data["IsActive"] = model.IsActive.Value;
                 data["Element"] = model.Element ?? (object)DBNull.Value;
+                if (model.CategoryId.HasValue && model.CategoryId.Value != Guid.Empty)
+                    data["CategoryId"] = model.CategoryId.Value;
+                else
+                    data["CategoryId"] = DBNull.Value;
                 data["UpdateDate"] = DateTime.UtcNow;
 
                 int affected;
@@ -134,11 +141,73 @@ namespace breakfastshop.Controllers
         }
         #endregion
 
+        #region MealCategory
+        [HttpGet]
+        public JsonResult GetMealCategories(Guid? shopId, bool? onlyActive)
+        {
+            var sql = @"SELECT c.Id, c.ShopId, s.Name AS ShopName, c.Name, c.SortOrder, c.IsActive, c.CreateDate, c.UpdateDate
+                        FROM dbo.MealCategory AS c
+                        LEFT JOIN dbo.Shop AS s ON c.ShopId = s.Id
+                        WHERE (@ShopId IS NULL OR c.ShopId=@ShopId)
+                          AND (@OnlyAct IS NULL OR c.IsActive=@OnlyAct)
+                        ORDER BY c.SortOrder ASC, c.Name ASC";
+            var dt = _db.Query(sql, new Dictionary<string, object>
+            {
+                ["ShopId"] = (object)shopId ?? DBNull.Value,
+                ["OnlyAct"] = (object)onlyActive ?? DBNull.Value
+            });
+            return Json(BackstageSQL.ToList(dt), JsonRequestBehavior.AllowGet);
+        }
+
+        [HttpPost]
+        public JsonResult UpdateMealCategory(string actionType, MealCategoryDto model)
+        {
+            try
+            {
+                if (string.Equals(actionType, "Delete", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (model == null || model.Id == Guid.Empty) throw new ArgumentException("缺少 Id");
+                    int affectedDelete = _db.DoSQL("Delete", "MealCategory", id: model.Id.ToString());
+                    return Json(new { ok = affectedDelete > 0, rows = affectedDelete });
+                }
+
+                if (model == null) throw new ArgumentException("缺少資料");
+                if (model.ShopId == Guid.Empty) throw new ArgumentException("缺少 ShopId");
+                if (string.IsNullOrWhiteSpace(model.Name)) throw new ArgumentException("分類名稱必填");
+
+                var data = new Dictionary<string, object>();
+                if (string.Equals(actionType, "Create", StringComparison.OrdinalIgnoreCase))
+                {
+                    data["Id"] = model.Id == Guid.Empty ? Guid.NewGuid() : model.Id;
+                    data["CreateDate"] = DateTime.UtcNow;
+                }
+                else if (model.Id == Guid.Empty) throw new ArgumentException("缺少 Id");
+
+                data["ShopId"] = model.ShopId;
+                data["Name"] = model.Name;
+                data["SortOrder"] = model.SortOrder ?? 0;
+                if (model.IsActive.HasValue) data["IsActive"] = model.IsActive.Value;
+                data["UpdateDate"] = DateTime.UtcNow;
+
+                int affected = string.Equals(actionType, "Create", StringComparison.OrdinalIgnoreCase)
+                    ? _db.DoSQL("Create", "MealCategory", data: data)
+                    : _db.DoSQL("Update", "MealCategory", id: model.Id.ToString(), data: data);
+
+                return Json(new { ok = affected > 0, rows = affected, id = data.ContainsKey("Id") ? data["Id"] : model.Id });
+            }
+            catch (Exception ex)
+            {
+                Response.StatusCode = 400;
+                return Json(new { ok = false, error = ex.Message });
+            }
+        }
+        #endregion
+
         #region Combo
         [HttpGet]
         public JsonResult GetCombo(Guid? shopId, bool? onlyActive)
         {
-            var sql = @"SELECT c.Id, c.ShopId, s.Name AS ShopName, c.ComboMeal, c.Money, c.IsActive, c.CreateDate, c.UpdateDate
+            var sql = @"SELECT c.Id, c.ShopId, s.Name AS ShopName, c.Title, c.ComboMeal, c.Money, c.IsActive, c.CreateDate, c.UpdateDate
                         FROM dbo.Combo AS c
                         LEFT JOIN dbo.Shop AS s ON c.ShopId = s.Id
                         WHERE (@ShopId IS NULL OR c.ShopId=@ShopId)
@@ -166,6 +235,7 @@ namespace breakfastshop.Controllers
 
                 if (model == null) throw new ArgumentException("缺少資料");
                 if (model.ShopId == Guid.Empty) throw new ArgumentException("缺少 ShopId");
+                if (string.IsNullOrWhiteSpace(model.Name)) throw new ArgumentException("套餐名稱必填");
                 if (string.IsNullOrWhiteSpace(model.ComboMeal)) throw new ArgumentException("套餐內容必填");
                 if (model.Money.HasValue && model.Money.Value < 0) throw new ArgumentException("金額不可為負值");
 
@@ -178,7 +248,9 @@ namespace breakfastshop.Controllers
                 else if (model.Id == Guid.Empty) throw new ArgumentException("缺少 Id");
 
                 data["ShopId"] = model.ShopId;
-                data["ComboMeal"] = model.ComboMeal ?? (object)DBNull.Value;
+                data["Title"] = model.Name ?? (object)DBNull.Value;
+                string comboPayload = string.IsNullOrWhiteSpace(model.ComboMeal) ? "[]" : model.ComboMeal;
+                data["ComboMeal"] = comboPayload;
                 if (model.Money.HasValue) data["Money"] = model.Money.Value;
                 if (model.IsActive.HasValue) data["IsActive"] = model.IsActive.Value;
                 data["UpdateDate"] = DateTime.UtcNow;
@@ -238,6 +310,8 @@ namespace breakfastshop.Controllers
                 data["Name"] = model.Name ?? (object)DBNull.Value;
                 data["Phone"] = model.Phone ?? (object)DBNull.Value;
                 data["Account"] = model.Account ?? (object)DBNull.Value;
+                if (!string.IsNullOrWhiteSpace(model.Password) && model.Password.Length < 6)
+                    throw new ArgumentException("密碼至少 6 碼");
                 data["Password"] = model.Password ?? (object)DBNull.Value;
                 data["Addr"] = model.Addr ?? (object)DBNull.Value;
                 if (model.IsActive.HasValue) data["IsActive"] = model.IsActive.Value;
@@ -347,15 +421,25 @@ namespace breakfastshop.Controllers
         public string Element { get; set; }
         public string Table { get; set; }  // 若不用可忽略
         public string Classification { get; set; }
+        public Guid? CategoryId { get; set; }
     }
 
     public class ComboDto
     {
         public Guid Id { get; set; }
         public Guid ShopId { get; set; }
-        public string Name { get; set; } 
+        public string Name { get; set; }
         public string ComboMeal { get; set; }
         public decimal? Money { get; set; }
+        public bool? IsActive { get; set; }
+    }
+
+    public class MealCategoryDto
+    {
+        public Guid Id { get; set; }
+        public Guid ShopId { get; set; }
+        public string Name { get; set; }
+        public int? SortOrder { get; set; }
         public bool? IsActive { get; set; }
     }
 

@@ -152,7 +152,7 @@
 </head>
 <body>
     <div class="app container-xxl">
-        <div class="d-flex align-items-center justify-content-between mb-4">
+        <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
             <div class="brand">
                 <img src="/assets/logo-breakfast.png" alt="亮亮早餐" class="brand-logo" onerror="this.style.display='none'">
                 <div>
@@ -160,7 +160,8 @@
                     <div class="muted">餐點設定、套餐設定、桌號管理</div>
                 </div>
             </div>
-            <div class="d-flex align-items-center gap-2">
+            <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+                <span class="pill">登入店家：<span id="currentShopLabel">-</span></span>
                 <span class="pill">API Base: <code id="apiBaseText">(同網域)</code></span>
                 <button id="toggleDemo" class="btn btn-sm btn-outline-warning">切換 Demo</button>
             </div>
@@ -180,6 +181,9 @@
             <ul class="nav nav-tabs" id="adminTabs" role="tablist">
                 <li class="nav-item" role="presentation">
                     <button class="nav-link active" id="items-tab" data-bs-toggle="tab" data-bs-target="#items" type="button" role="tab">餐點設定</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="categories-tab" data-bs-toggle="tab" data-bs-target="#categories" type="button" role="tab">大項目設定</button>
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="combos-tab" data-bs-toggle="tab" data-bs-target="#combos" type="button" role="tab">套餐設定</button>
@@ -209,12 +213,35 @@
                     <div class="table-responsive">
                         <table class="table align-middle table-bordered">
                             <thead>
-                                <tr><th>#</th><th>名稱</th><th>店家</th><th class="text-end">價格</th><th>成分</th><th>限量</th><th>上架</th><th>操作</th></tr>
+                                <tr><th>#</th><th>名稱</th><th>店家</th><th>分類</th><th class="text-end">價格</th><th>成分</th><th>限量</th><th>上架</th><th>操作</th></tr>
                             </thead>
                             <tbody id="itemsBody"></tbody>
                         </table>
                     </div>
                     <nav><ul class="pagination" id="itemsPager"></ul></nav>
+                </div>
+
+                <!-- 大項目設定 -->
+                <div class="tab-pane fade" id="categories" role="tabpanel">
+                    <div class="d-flex flex-wrap align-items-center mb-3 searchbar">
+                        <input id="kwCategories" class="form-control" placeholder="搜尋名稱..." style="max-width:240px" />
+                        <select id="activeCategories" class="form-select" style="max-width:160px">
+                            <option value="">全部</option>
+                            <option value="true">啟用</option>
+                            <option value="false">停用</option>
+                        </select>
+                        <button class="btn btn-outline-secondary" id="btnSearchCategories">搜尋</button>
+                        <button type="button" class="btn btn-accent ms-auto" id="btnNewCategory">+ 新增大項目</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table align-middle table-bordered">
+                            <thead>
+                                <tr><th>#</th><th>名稱</th><th>排序</th><th>店家</th><th>狀態</th><th>操作</th></tr>
+                            </thead>
+                            <tbody id="categoriesBody"></tbody>
+                        </table>
+                    </div>
+                    <nav><ul class="pagination" id="categoriesPager"></ul></nav>
                 </div>
 
                 <!-- 套餐設定 -->
@@ -311,10 +338,16 @@
                                 <label class="form-check-label" for="itemActive">上架</label>
                             </div>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-6" id="itemShopField">
                             <label class="form-label">店家</label>
                             <select id="itemShopId" class="form-select" required>
                                 <option value="">選擇店家…</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">分類</label>
+                            <select id="itemCategoryId" class="form-select">
+                                <option value="">未指定</option>
                             </select>
                         </div>
                         <div class="col-12">
@@ -358,6 +391,12 @@
                             <label class="form-label">名稱</label>
                             <input id="comboName" class="form-control" required />
                         </div>
+                        <div class="col-md-6" id="comboShopField">
+                            <label class="form-label">店家</label>
+                            <select id="comboShopId" class="form-select">
+                                <option value="">選擇店家…</option>
+                            </select>
+                        </div>
                         <div class="col-md-3">
                             <label class="form-label">價格</label>
                             <input id="comboPrice" type="number" min="0" step="1" class="form-control" required />
@@ -388,6 +427,44 @@
                 <div class="modal-footer">
                     <button class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
                     <button class="btn btn-accent" id="saveCombo">儲存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 大項目 Modal -->
+    <div class="modal fade" id="categoryModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-md modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title">大項目</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+                <div class="modal-body">
+                    <form id="categoryForm" class="row g-3">
+                        <input type="hidden" id="categoryId" />
+                        <div class="col-md-6">
+                            <label class="form-label">名稱</label>
+                            <input id="categoryName" class="form-control" required />
+                        </div>
+                        <div class="col-md-6" id="categoryShopField">
+                            <label class="form-label">店家</label>
+                            <select id="categoryShopId" class="form-select">
+                                <option value="">選擇店家…</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">排序</label>
+                            <input id="categorySort" type="number" step="1" class="form-control" />
+                        </div>
+                        <div class="col-md-6 d-flex align-items-end">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="categoryActive" checked>
+                                <label class="form-check-label" for="categoryActive">啟用</label>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                    <button class="btn btn-accent" id="saveCategory">儲存</button>
                 </div>
             </div>
         </div>
@@ -482,19 +559,43 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         (() => {
-            // TODO: 換成你資料庫 Shop 的 GUID
-            const SHOP_ID = 'PUT-YOUR-SHOP-GUID-HERE';
+            const SHOP_ID = sessionStorage.getItem('ll-shop-id') || '';
+            const SHOP_NAME = sessionStorage.getItem('ll-shop-name') || '';
+            const SHOP_ACCOUNT = (sessionStorage.getItem('ll-shop-account') || '').toLowerCase();
+            const IS_ADMIN = SHOP_ACCOUNT === 'admin';
+
+            if (!SHOP_ID) {
+                window.location.href = '@Url.Action("Login", "Home")';
+                return;
+            }
 
             const apiBase = ''; // 與後端同站點
-            const state = { demo: false, itemsPage: 1, combosPage: 1, tablesPage: 1, shopsPage: 1, pageSize: 10, items: [], combos: [], tables: [], shops: [], allItemsForCombo: [] };
+            const state = {
+                demo: false,
+                pageSize: 10,
+                itemsPage: 1,
+                combosPage: 1,
+                tablesPage: 1,
+                shopsPage: 1,
+                categoriesPage: 1,
+                items: [],
+                combos: [],
+                combosAll: [],
+                tables: [],
+                shops: [],
+                categories: [],
+                allItemsForCombo: []
+            };
             const $ = (sel) => document.querySelector(sel);
             const $all = (sel) => Array.from(document.querySelectorAll(sel));
             const el = {
-                apiBaseText: $('#apiBaseText'), demoBanner: $('#demoBanner'),
+                apiBaseText: $('#apiBaseText'), demoBanner: $('#demoBanner'), currentShopLabel: $('#currentShopLabel'),
                 // items
-                kwItems: $('#kwItems'), activeItems: $('#activeItems'), btnSearchItems: $('#btnSearchItems'), btnNewItem: $('#btnNewItem'), itemsBody: $('#itemsBody'), itemsPager: $('#itemsPager'),
+                kwItems: $('#kwItems'), activeItems: $('#activeItems'), btnSearchItems: $('#btnSearchItems'), btnNewItem: $('#btnNewItem'), itemsBody: $('#itemsBody'), itemsPager: $('#itemsPager'), itemCategoryId: $('#itemCategoryId'), itemShopField: $('#itemShopField'),
+                // categories
+                kwCategories: $('#kwCategories'), activeCategories: $('#activeCategories'), btnSearchCategories: $('#btnSearchCategories'), btnNewCategory: $('#btnNewCategory'), categoriesBody: $('#categoriesBody'), categoriesPager: $('#categoriesPager'),
                 // combos
-                kwCombos: $('#kwCombos'), activeCombos: $('#activeCombos'), btnSearchCombos: $('#btnSearchCombos'), btnNewCombo: $('#btnNewCombo'), combosBody: $('#combosBody'), combosPager: $('#combosPager'),
+                kwCombos: $('#kwCombos'), activeCombos: $('#activeCombos'), btnSearchCombos: $('#btnSearchCombos'), btnNewCombo: $('#btnNewCombo'), combosBody: $('#combosBody'), combosPager: $('#combosPager'), comboShopId: $('#comboShopId'), comboShopField: $('#comboShopField'),
                 // tables
                 kwTables: $('#kwTables'), activeTables: $('#activeTables'), btnSearchTables: $('#btnSearchTables'), btnNewTable: $('#btnNewTable'), tablesBody: $('#tablesBody'), tablesPager: $('#tablesPager'),
                 // shops
@@ -504,10 +605,21 @@
                 comboModal: $('#comboModal'), comboForm: $('#comboForm'), comboId: $('#comboId'), comboName: $('#comboName'), comboPrice: $('#comboPrice'), comboActive: $('#comboActive'), comboLimited: $('#comboLimited'), comboLimitedQty: $('#comboLimitedQty'), comboRemainingQty: $('#comboRemainingQty'), comboItemSelect: $('#comboItemSelect'), comboItemQty: $('#comboItemQty'), addComboLine: $('#addComboLine'),
                 comboLines: document.getElementById('comboLines'), // 用 getElementById，避免 querySelector 時機問題
                 saveCombo: $('#saveCombo'),
+                categoryModal: $('#categoryModal'), categoryForm: $('#categoryForm'), categoryId: $('#categoryId'), categoryName: $('#categoryName'), categorySort: $('#categorySort'), categoryActive: $('#categoryActive'), saveCategory: $('#saveCategory'), categoryShopId: $('#categoryShopId'), categoryShopField: $('#categoryShopField'),
                 tableModal: $('#tableModal'), tableForm: $('#tableForm'), tableId: $('#tableId'), tableCode: $('#tableCode'), tableZone: $('#tableZone'), tableActive: $('#tableActive'), saveTable: $('#saveTable'),
                 shopModal: $('#shopModal'), shopForm: $('#shopForm'), shopId: $('#shopId'), shopName: $('#shopName'), shopPhone: $('#shopPhone'), shopAccount: $('#shopAccount'), shopPassword: $('#shopPassword'), shopAddr: $('#shopAddr'), shopActive: $('#shopActive'), saveShop: $('#saveShop'),
                 toggleDemo: $('#toggleDemo'),
             };
+
+            if (el.currentShopLabel) el.currentShopLabel.textContent = SHOP_NAME || '(未命名)';
+            if (!IS_ADMIN) {
+                el.itemShopField?.classList.add('d-none');
+                el.comboShopField?.classList.add('d-none');
+                el.categoryShopField?.classList.add('d-none');
+            }
+            if (el.shopPassword) {
+                el.shopPassword.setAttribute('minlength', '6');
+            }
 
             function toast(msg) { console.log('[toast]', msg); }
             function showDemoBanner(show) { el.demoBanner?.classList.toggle('d-none', !show); }
@@ -526,6 +638,104 @@
                 container.querySelectorAll('.page-link').forEach(a => a.addEventListener('click', e => { e.preventDefault(); const p = parseInt(a.dataset.page); onClick(p); }));
             }
 
+            const keyOf = (id) => String(id || '').toLowerCase();
+            function getVisibleShops() {
+                const list = state.shops || [];
+                if (IS_ADMIN) return list;
+                return list.filter(s => keyOf(s.id ?? s.Id) === keyOf(SHOP_ID));
+            }
+            function fillShopSelect(select, selectedId = '') {
+                if (!select) return;
+                const shops = getVisibleShops();
+                const options = [];
+                if (IS_ADMIN) {
+                    options.push('<option value="">選擇店家…</option>');
+                }
+                shops.forEach(shop => {
+                    const id = shop.id ?? shop.Id ?? '';
+                    if (!id) return;
+                    const name = shop.name ?? shop.Name ?? '(未命名)';
+                    const inactive = shop.isActive === false || shop.IsActive === false ? '（停用）' : '';
+                    options.push(`<option value="${id}">${name}${inactive}</option>`);
+                });
+                if (!options.length && !IS_ADMIN) {
+                    options.push(`<option value="${SHOP_ID}">${SHOP_NAME || '我的店家'}</option>`);
+                }
+                select.innerHTML = options.join('');
+                const target = selectedId || (!IS_ADMIN ? SHOP_ID : '');
+                if (target) {
+                    select.value = target;
+                    if (select.value !== target) {
+                        select.value = '';
+                    }
+                }
+                select.disabled = !IS_ADMIN;
+            }
+            function renderItemShopOptions(selectedId = '') {
+                fillShopSelect(el.itemShopId, selectedId);
+            }
+            function renderComboShopOptions(selectedId = '') {
+                fillShopSelect(el.comboShopId, selectedId || (!IS_ADMIN ? SHOP_ID : ''));
+            }
+            function renderCategoryShopOptions(selectedId = '') {
+                fillShopSelect(el.categoryShopId, selectedId || (!IS_ADMIN ? SHOP_ID : ''));
+            }
+            function renderItemCategoryOptions(selectedId = '', shopId = '') {
+                if (!el.itemCategoryId) return;
+                const select = el.itemCategoryId;
+                const categories = state.categories || [];
+                const targetShop = shopId || (IS_ADMIN ? (el.itemShopId?.value || '') : SHOP_ID);
+                const options = ['<option value="">未指定</option>'];
+                categories
+                    .filter(cat => !targetShop || keyOf(cat.shopId ?? cat.ShopId) === keyOf(targetShop))
+                    .forEach(cat => {
+                        const id = cat.id ?? cat.Id ?? '';
+                        if (!id) return;
+                        const name = cat.name ?? cat.Name ?? '(未命名)';
+                        const inactive = cat.isActive === false || cat.IsActive === false ? '（停用）' : '';
+                        options.push(`<option value="${id}">${name}${inactive}</option>`);
+                    });
+                select.innerHTML = options.join('');
+                if (selectedId) {
+                    select.value = selectedId;
+                    if (select.value !== selectedId) {
+                        select.value = '';
+                    }
+                }
+            }
+            function lookupItem(menuItemId) {
+                return (state.allItemsForCombo || []).find(m => keyOf(m.id ?? m.Id) === keyOf(menuItemId));
+            }
+            function parseComboItems(raw) {
+                if (!raw) return [];
+                try {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed)) {
+                        return parsed
+                            .map(item => {
+                                const id = item.menuItemId ?? item.MenuItemId ?? item.id ?? item.Id;
+                                if (!id) return null;
+                                const qty = parseInt(item.quantity ?? item.Quantity ?? item.qty ?? item.Qty ?? 1, 10);
+                                return {
+                                    menuItemId: String(id),
+                                    quantity: Number.isNaN(qty) || qty <= 0 ? 1 : qty
+                                };
+                            })
+                            .filter(Boolean);
+                    }
+                } catch (_) { /* ignore */ }
+                return [];
+            }
+            function enrichComboItems(items) {
+                return items.map(item => {
+                    const found = lookupItem(item.menuItemId);
+                    return Object.assign({}, item, {
+                        itemName: found?.name ?? found?.Name ?? item.itemName ?? `項目#${item.menuItemId}`,
+                        shopId: found?.shopId ?? found?.ShopId ?? item.shopId ?? ''
+                    });
+                });
+            }
+
             // ---- 通用 Demo API（保留） ----
             async function api(path, options) {
                 try {
@@ -541,17 +751,27 @@
                 if (path.startsWith('/api/menu-items')) {
                     if (!state.items.length) {
                         state.items = [
-                            { id: 1, shopId: 1, name: '日光蛋吐司', price: 45, shopName: '亮亮早餐 總店', ingredients: ['egg', 'toast'], isLimited: false, limitedQty: null, remainingQty: null, isActive: true },
-                            { id: 2, shopId: 1, name: '火腿蛋吐司', price: 55, shopName: '亮亮早餐 總店', ingredients: ['ham', 'egg', 'toast'], isLimited: false, limitedQty: null, remainingQty: null, isActive: true },
-                            { id: 3, shopId: 2, name: '鮮奶茶', price: 35, shopName: '亮亮早餐 板橋店', ingredients: ['milk', 'tea'], isLimited: true, limitedQty: 50, remainingQty: 23, isActive: true },
+                            { id: 1, shopId: 1, name: '日光蛋吐司', price: 45, shopName: '亮亮早餐 總店', categoryId: 1, categoryName: '吐司', ingredients: ['egg', 'toast'], isLimited: false, limitedQty: null, remainingQty: null, isActive: true },
+                            { id: 2, shopId: 1, name: '火腿蛋吐司', price: 55, shopName: '亮亮早餐 總店', categoryId: 1, categoryName: '吐司', ingredients: ['ham', 'egg', 'toast'], isLimited: false, limitedQty: null, remainingQty: null, isActive: true },
+                            { id: 3, shopId: 2, name: '鮮奶茶', price: 35, shopName: '亮亮早餐 板橋店', categoryId: 3, categoryName: '飲品', ingredients: ['milk', 'tea'], isLimited: true, limitedQty: 50, remainingQty: 23, isActive: true },
                         ];
                     }
                     return paginateLocal(state.items, getQuery(path));
                 }
+                if (path.startsWith('/api/meal-categories')) {
+                    if (!state.categories.length) {
+                        state.categories = [
+                            { id: 1, shopId: 1, name: '吐司', sortOrder: 1, isActive: true, shopName: '亮亮早餐 總店' },
+                            { id: 2, shopId: 1, name: '點心', sortOrder: 2, isActive: true, shopName: '亮亮早餐 總店' },
+                            { id: 3, shopId: 2, name: '飲品', sortOrder: 1, isActive: true, shopName: '亮亮早餐 板橋店' },
+                        ];
+                    }
+                    return paginateLocal(state.categories, getQuery(path));
+                }
                 if (path.startsWith('/api/combos')) {
                     if (!state.combos.length) {
                         state.combos = [
-                            { id: 1, name: '活力早餐A', price: 99, shopName: '亮亮早餐 總店', isLimited: false, limitedQty: null, remainingQty: null, isActive: true, items: [{ menuItemId: 1, quantity: 1, itemName: '日光蛋吐司' }, { menuItemId: 3, quantity: 1, itemName: '鮮奶茶' }] },
+                            { id: 1, title: '活力早餐A', name: '活力早餐A', price: 99, shopId: 1, shopName: '亮亮早餐 總店', isLimited: false, limitedQty: null, remainingQty: null, isActive: true, items: [{ menuItemId: 1, quantity: 1, itemName: '日光蛋吐司' }, { menuItemId: 3, quantity: 1, itemName: '鮮奶茶' }] },
                         ];
                     }
                     return paginateLocal(state.combos, getQuery(path));
@@ -586,7 +806,7 @@
                 if (q.keyword) {
                     list = list.filter(x => {
                         const key = q.keyword;
-                        return [x.name, x.code, x.zone, x.phone, x.account, x.addr, x.shopName].some(val => (val || '').includes(key));
+                        return [x.name, x.code, x.zone, x.phone, x.account, x.addr, x.shopName, x.categoryName].some(val => (val || '').includes(key));
                     });
                 }
                 if (q.active !== undefined && q.active !== '') {
@@ -600,23 +820,37 @@
             // ========== Meals ==========
             async function loadItems(page = 1) {
                 try {
+                    const params = new URLSearchParams();
                     const activeVal = el.activeItems.value; // '', 'true', 'false'
-                    const res = await fetch(`/Home/GetMeals?onlyActive=${encodeURIComponent(activeVal)}`, { method: 'GET', headers: { 'Accept': 'application/json' } });
+                    if (activeVal !== '') params.append('onlyActive', activeVal);
+                    if (!IS_ADMIN && SHOP_ID) params.append('shopId', SHOP_ID);
+                    const query = params.toString();
+                    const res = await fetch(`/Home/GetMeals${query ? `?${query}` : ''}`, { method: 'GET', headers: { 'Accept': 'application/json' } });
                     if (!res.ok) throw new Error(await res.text());
-                    const rows = await res.json(); // List<Dictionary<string,object>>
+                    const rows = await res.json();
                     const mapped = rows.map(r => ({
                         id: r.Id,
                         name: r.Name || '',
                         shopId: r.ShopId || '',
                         shopName: r.ShopName || '',
+                        categoryId: r.CategoryId || '',
+                        categoryName: r.CategoryName || '',
                         price: Number(r.Money || 0),
                         ingredients: (r.Element || '').split(',').map(s => (s || '').trim()).filter(Boolean),
                         isActive: !!r.IsActive,
-                        isLimited: false, limitedQty: null, remainingQty: null
+                        isLimited: false,
+                        limitedQty: null,
+                        remainingQty: null
                     }));
 
+                    state.items = mapped;
+                    state.allItemsForCombo = mapped;
+
                     const kw = el.kwItems.value.trim();
-                    const filtered = kw ? mapped.filter(x => (x.name || '').includes(kw) || (x.shopName || '').includes(kw)) : mapped;
+                    let filtered = mapped;
+                    if (kw) {
+                        filtered = mapped.filter(x => [x.name, x.shopName, x.categoryName].some(val => (val || '').includes(kw)));
+                    }
 
                     const pageSize = state.pageSize;
                     const total = filtered.length;
@@ -628,17 +862,23 @@
                     renderItems({ items, total, page: current, pageSize });
                     state.itemsPage = current;
 
-                    state.allItemsForCombo = mapped;
-                    renderComboItemSelect();
+                    const comboShop = IS_ADMIN ? (el.comboShopId?.value || '') : SHOP_ID;
+                    renderComboItemSelect(comboShop);
                 } catch (err) {
                     state.demo = true; showDemoBanner(true);
                     const data = await api(`/api/menu-items?page=${page}&pageSize=${state.pageSize}`);
-                    renderItems(data); state.itemsPage = data.page;
-                    state.allItemsForCombo = (data.items || []).map(item => Object.assign({}, item, {
+                    const items = (data.items || []).map(item => Object.assign({}, item, {
                         shopId: item.shopId ?? item.ShopId ?? item.shop_id ?? '',
-                        shopName: item.shopName ?? item.ShopName ?? item.shop_name ?? item.shop ?? ''
+                        shopName: item.shopName ?? item.ShopName ?? item.shop_name ?? item.shop ?? '',
+                        categoryId: item.categoryId ?? item.CategoryId ?? '',
+                        categoryName: item.categoryName ?? item.CategoryName ?? ''
                     }));
-                    renderComboItemSelect();
+                    state.items = items;
+                    state.allItemsForCombo = items;
+                    renderItems({ items, total: data.total || items.length, page: data.page || 1, pageSize: data.pageSize || state.pageSize });
+                    state.itemsPage = data.page || 1;
+                    const comboShop = IS_ADMIN ? (el.comboShopId?.value || '') : SHOP_ID;
+                    renderComboItemSelect(comboShop);
                 }
             }
             function renderItems({ items, total, page, pageSize }) {
@@ -648,6 +888,7 @@
                 <td>${m.id}</td>
                 <td>${m.name}</td>
                 <td>${m.shopName || '-'}</td>
+                <td>${m.categoryName || '-'}</td>
                 <td class="text-end">$${m.price}</td>
                 <td>${(m.ingredients || []).join(', ')}</td>
                 <td>${m.isLimited ? (m.remainingQty ?? 0) + ' / ' + (m.limitedQty ?? '-') : tag(false, '限量', '不限')}</td>
@@ -663,25 +904,7 @@
                 body.querySelectorAll('button[data-act]').forEach(btn => btn.addEventListener('click', onItemAction));
             }
             function renderItemShopOptions(selectedId = '') {
-                const select = el.itemShopId;
-                if (!select) return;
-                const preserve = selectedId || select.value || '';
-                const shops = state.shops || [];
-                const options = ['<option value="">選擇店家…</option>'];
-                shops.forEach(shop => {
-                    const id = shop.id ?? '';
-                    if (!id) return;
-                    const name = shop.name || '(未命名)';
-                    const suffix = shop.isActive === false ? '（停用）' : '';
-                    options.push(`<option value="${id}">${name}${suffix}</option>`);
-                });
-                select.innerHTML = options.join('');
-                if (preserve) {
-                    select.value = preserve;
-                    if (select.value !== preserve) {
-                        select.value = '';
-                    }
-                }
+                fillShopSelect(el.itemShopId, selectedId);
             }
             async function onItemAction(e) {
                 const id = e.currentTarget.dataset.id;
@@ -706,6 +929,14 @@
                         el.itemShopId.value = '';
                     }
                 }
+                const categoryShop = el.itemShopId?.value || m?.shopId || (IS_ADMIN ? '' : SHOP_ID);
+                renderItemCategoryOptions(m?.categoryId || '', categoryShop);
+                if (el.itemCategoryId) {
+                    el.itemCategoryId.value = m?.categoryId || '';
+                    if (m?.categoryId && el.itemCategoryId.value !== m.categoryId) {
+                        el.itemCategoryId.value = '';
+                    }
+                }
                 el.itemIngredients.value = (m?.ingredients || []).join(', ');
                 el.itemActive.checked = (m?.isActive ?? true);
                 el.itemLimited.checked = false;
@@ -714,12 +945,20 @@
                 if (!state.shops?.length) {
                     loadShops();
                 }
+                if (!state.categories?.length) {
+                    loadCategories();
+                }
                 new bootstrap.Modal(el.itemModal).show();
             }
             el.btnNewItem?.addEventListener('click', e => { e.preventDefault(); openItemModal(null); });
+            el.itemShopId?.addEventListener('change', () => {
+                if (IS_ADMIN) {
+                    renderItemCategoryOptions('', el.itemShopId.value || '');
+                }
+            });
             el.saveItem?.addEventListener('click', async e => {
                 e.preventDefault();
-                const shopId = el.itemShopId?.value || '';
+                const shopId = IS_ADMIN ? (el.itemShopId?.value || '') : SHOP_ID;
                 if (!shopId) {
                     toast('請選擇店家');
                     el.itemShopId?.focus();
@@ -732,7 +971,8 @@
                     ingredients: el.itemIngredients.value.split(',').map(s => s.trim()).filter(Boolean),
                     isActive: el.itemActive.checked,
                     shopId,
-                    shopName: shop?.name || ''
+                    shopName: shop?.name || '',
+                    categoryId: el.itemCategoryId?.value || ''
                 };
                 const id = el.itemId.value || '';
                 await upsertItem(id ? 'PUT' : 'POST', id || null, payload);
@@ -748,6 +988,7 @@
                     form.append('model.Money', (payload.price || 0).toString());
                     form.append('model.IsActive', payload.isActive ? 'true' : 'false');
                     form.append('model.Element', (payload.ingredients || []).join(','));
+                    form.append('model.CategoryId', payload.categoryId || '');
                     const res = await fetch('/Home/UpdateMeals', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }, body: form.toString() });
                     if (!res.ok) throw new Error(await res.text());
                 } catch (err) {
@@ -777,32 +1018,218 @@
                 }
             }
 
+            // ========== Categories ==========
+            async function loadCategories(page = 1) {
+                try {
+                    const params = new URLSearchParams();
+                    const activeVal = el.activeCategories?.value ?? '';
+                    if (activeVal !== '') params.append('onlyActive', activeVal);
+                    if (!IS_ADMIN && SHOP_ID) params.append('shopId', SHOP_ID);
+                    const query = params.toString();
+                    const res = await fetch(`/Home/GetMealCategories${query ? `?${query}` : ''}`, { method: 'GET', headers: { 'Accept': 'application/json' } });
+                    if (!res.ok) throw new Error(await res.text());
+                    const rows = await res.json();
+                    const mapped = rows.map(r => ({
+                        id: r.Id,
+                        shopId: r.ShopId || '',
+                        shopName: r.ShopName || '',
+                        name: r.Name || '',
+                        sortOrder: typeof r.SortOrder === 'number' ? r.SortOrder : parseInt(r.SortOrder || '0', 10) || 0,
+                        isActive: !!r.IsActive
+                    }));
+                    state.categories = mapped;
+
+                    const visible = IS_ADMIN ? mapped : mapped.filter(cat => keyOf(cat.shopId) === keyOf(SHOP_ID));
+                    let filtered = visible;
+                    const kw = (el.kwCategories?.value || '').trim();
+                    if (kw) {
+                        filtered = visible.filter(cat => [cat.name, cat.shopName].some(val => (val || '').includes(kw)));
+                    }
+
+                    const pageSize = state.pageSize;
+                    const total = filtered.length;
+                    const pages = Math.max(1, Math.ceil(total / pageSize));
+                    const current = Math.min(Math.max(1, page), pages);
+                    const start = (current - 1) * pageSize;
+                    const items = filtered.slice(start, start + pageSize);
+
+                    renderCategories({ items, total, page: current, pageSize });
+                    state.categoriesPage = current;
+                    renderItemCategoryOptions(el.itemCategoryId?.value || '', el.itemShopId?.value || (IS_ADMIN ? '' : SHOP_ID));
+                } catch (err) {
+                    console.warn('loadCategories failed', err);
+                    const data = await api(`/api/meal-categories?page=${page}&pageSize=${state.pageSize}`);
+                    const mapped = (data.items || []).map(cat => ({
+                        id: cat.id ?? cat.Id ?? '',
+                        shopId: cat.shopId ?? cat.ShopId ?? '',
+                        shopName: cat.shopName ?? cat.ShopName ?? '',
+                        name: cat.name ?? cat.Name ?? '',
+                        sortOrder: cat.sortOrder ?? cat.SortOrder ?? 0,
+                        isActive: cat.isActive ?? cat.IsActive ?? true
+                    }));
+                    state.categories = mapped;
+                    renderCategories({ items: mapped, total: data.total ?? mapped.length, page: data.page ?? 1, pageSize: data.pageSize ?? state.pageSize });
+                    state.categoriesPage = data.page ?? 1;
+                    renderItemCategoryOptions(el.itemCategoryId?.value || '', el.itemShopId?.value || (IS_ADMIN ? '' : SHOP_ID));
+                }
+            }
+            function renderCategories({ items, total, page, pageSize }) {
+                const body = el.categoriesBody;
+                if (!body) return;
+                body.innerHTML = items.map(c => `
+              <tr>
+                <td>${c.id}</td>
+                <td>${c.name}</td>
+                <td>${c.sortOrder ?? 0}</td>
+                <td>${c.shopName || '-'}</td>
+                <td>${tag(!!c.isActive, '啟用', '停用')}</td>
+                <td>
+                  <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary" data-act="edit-category" data-id="${c.id}">編輯</button>
+                    <button class="btn btn-outline-danger" data-act="del-category" data-id="${c.id}">刪除</button>
+                  </div>
+                </td>
+              </tr>`).join('');
+                pager(el.categoriesPager, total, page, pageSize, p => loadCategories(p));
+                body.querySelectorAll('button[data-act]').forEach(btn => btn.addEventListener('click', onCategoryAction));
+            }
+            function onCategoryAction(e) {
+                const id = e.currentTarget.dataset.id;
+                const act = e.currentTarget.dataset.act;
+                if (act === 'edit-category') {
+                    const target = state.categories?.find(cat => keyOf(cat.id) === keyOf(id));
+                    openCategoryModal(target || null);
+                } else if (act === 'del-category') {
+                    if (!confirm('確定刪除？')) return;
+                    removeCategory(id).then(() => loadCategories(state.categoriesPage));
+                }
+            }
+            function openCategoryModal(cat) {
+                el.categoryForm?.reset();
+                renderCategoryShopOptions(cat?.shopId || '');
+                if (!el.categoryModal) return;
+                el.categoryId.value = cat?.id || '';
+                el.categoryName.value = cat?.name || '';
+                el.categorySort.value = typeof cat?.sortOrder === 'number' ? cat.sortOrder : (cat?.sortOrder || '');
+                if (el.categoryActive) el.categoryActive.checked = (cat?.isActive ?? true);
+                new bootstrap.Modal(el.categoryModal).show();
+            }
+            el.btnNewCategory?.addEventListener('click', e => { e.preventDefault(); openCategoryModal(null); });
+            el.saveCategory?.addEventListener('click', async e => {
+                e.preventDefault();
+                const payload = {
+                    name: (el.categoryName?.value || '').trim(),
+                    sortOrder: parseInt(el.categorySort?.value || '0', 10) || 0,
+                    isActive: el.categoryActive?.checked ?? true,
+                    shopId: IS_ADMIN ? (el.categoryShopId?.value || '') : SHOP_ID
+                };
+                if (!payload.name) {
+                    toast('名稱必填');
+                    el.categoryName?.focus();
+                    return;
+                }
+                if (!payload.shopId) {
+                    toast('請選擇店家');
+                    el.categoryShopId?.focus();
+                    return;
+                }
+                const id = el.categoryId?.value || '';
+                try {
+                    await upsertCategory(id ? 'Update' : 'Create', id || null, payload);
+                    bootstrap.Modal.getInstance(el.categoryModal)?.hide();
+                    const nextPage = id ? state.categoriesPage : 1;
+                    await loadCategories(nextPage);
+                } catch (err) {
+                    console.error('saveCategory failed', err);
+                }
+            });
+            async function upsertCategory(action, id, payload) {
+                try {
+                    const form = new URLSearchParams();
+                    form.append('actionType', action);
+                    form.append('model.Id', id || '');
+                    form.append('model.ShopId', payload.shopId || '');
+                    form.append('model.Name', payload.name || '');
+                    form.append('model.SortOrder', String(payload.sortOrder ?? 0));
+                    form.append('model.IsActive', payload.isActive ? 'true' : 'false');
+                    const res = await fetch('/Home/UpdateMealCategory', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }, body: form.toString() });
+                    if (!res.ok) throw new Error(await res.text());
+                } catch (err) {
+                    if (state.demo) {
+                        if (action === 'Create') {
+                            const maxId = Math.max(0, ...state.categories.map(x => parseInt(x.id, 10) || 0));
+                            state.categories.push({ id: maxId + 1, ...payload });
+                        } else if (action === 'Update') {
+                            const target = state.categories.find(x => keyOf(x.id) === keyOf(id));
+                            if (target) Object.assign(target, payload);
+                        }
+                        return;
+                    }
+                    toast('儲存大項目失敗：' + (err.message || err));
+                    throw err;
+                }
+            }
+            async function removeCategory(id) {
+                try {
+                    const form = new URLSearchParams();
+                    form.append('actionType', 'Delete');
+                    form.append('model.Id', id);
+                    const res = await fetch('/Home/UpdateMealCategory', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }, body: form.toString() });
+                    if (!res.ok) throw new Error(await res.text());
+                } catch (err) {
+                    if (state.demo) {
+                        state.categories = state.categories.filter(cat => keyOf(cat.id) !== keyOf(id));
+                        return;
+                    }
+                    toast('刪除大項目失敗：' + (err.message || err));
+                }
+            }
+
             // ========== Combo ==========
-            function renderComboItemSelect() {
+            function renderComboItemSelect(shopId = '') {
                 if (!el.comboItemSelect) return;
+                const targetShop = shopId || (IS_ADMIN ? (el.comboShopId?.value || '') : SHOP_ID);
                 const options = ['<option value="" disabled>選擇餐點（可多選）…</option>'];
-                state.allItemsForCombo.forEach(m => {
-                    const shopLabel = m.shopName ? ` - ${m.shopName}` : '';
-                    options.push(`<option value="${m.id}">${m.name} ($${m.price})${shopLabel}</option>`);
-                });
+                state.allItemsForCombo
+                    .filter(m => !targetShop || keyOf(m.shopId ?? m.ShopId) === keyOf(targetShop))
+                    .forEach(m => {
+                        const shopLabel = m.shopName ? ` - ${m.shopName}` : '';
+                        options.push(`<option value="${m.id}">${m.name} ($${m.price})${shopLabel}</option>`);
+                    });
                 el.comboItemSelect.innerHTML = options.join('');
                 Array.from(el.comboItemSelect.options).forEach(opt => { opt.selected = false; });
             }
             async function loadCombos(page = 1) {
                 try {
+                    const params = new URLSearchParams();
                     const activeVal = el.activeCombos.value;
-                    const res = await fetch(`/Home/GetCombo?onlyActive=${encodeURIComponent(activeVal)}`, { method: 'GET', headers: { 'Accept': 'application/json' } });
+                    if (activeVal !== '') params.append('onlyActive', activeVal);
+                    if (!IS_ADMIN && SHOP_ID) params.append('shopId', SHOP_ID);
+                    const query = params.toString();
+                    const res = await fetch(`/Home/GetCombo${query ? `?${query}` : ''}`, { method: 'GET', headers: { 'Accept': 'application/json' } });
                     if (!res.ok) throw new Error(await res.text());
                     const rows = await res.json();
-                    const mapped = rows.map(r => ({
-                        id: r.Id,
-                        name: r.ComboMeal || '',
-                        shopName: r.ShopName || '',
-                        price: Number(r.Money || 0),
-                        isActive: !!r.IsActive, isLimited: false, limitedQty: null, remainingQty: null, items: []
-                    }));
+                    const mapped = rows.map(r => {
+                        const items = enrichComboItems(parseComboItems(r.ComboMeal));
+                        return {
+                            id: r.Id,
+                            title: r.Title || r.ComboMeal || '',
+                            name: r.Title || r.ComboMeal || '',
+                            shopId: r.ShopId || '',
+                            shopName: r.ShopName || '',
+                            price: Number(r.Money || 0),
+                            isActive: !!r.IsActive,
+                            isLimited: false,
+                            limitedQty: null,
+                            remainingQty: null,
+                            items
+                        };
+                    });
+                    state.combosAll = mapped;
+
+                    const shopFiltered = IS_ADMIN ? mapped : mapped.filter(c => keyOf(c.shopId) === keyOf(SHOP_ID));
                     const kw = el.kwCombos.value.trim();
-                    const filtered = kw ? mapped.filter(x => (x.name || '').includes(kw) || (x.shopName || '').includes(kw)) : mapped;
+                    const filtered = kw ? shopFiltered.filter(x => [x.title, x.shopName].some(val => (val || '').includes(kw))) : shopFiltered;
 
                     const pageSize = state.pageSize;
                     const total = filtered.length;
@@ -816,14 +1243,23 @@
                 } catch (err) {
                     state.demo = true; showDemoBanner(true);
                     const data = await api(`/api/combos?page=${page}&pageSize=${state.pageSize}`);
-                    renderCombos(data); state.combosPage = data.page;
+                    const combos = (data.items || []).map(c => Object.assign({}, c, {
+                        title: c.title ?? c.Title ?? c.name ?? c.Name ?? '',
+                        name: c.title ?? c.Title ?? c.name ?? c.Name ?? '',
+                        shopId: c.shopId ?? c.ShopId ?? '',
+                        shopName: c.shopName ?? c.ShopName ?? '',
+                        items: (c.items || []).map(it => Object.assign({}, it, { itemName: it.itemName ?? it.ItemName ?? '' }))
+                    }));
+                    state.combosAll = combos;
+                    renderCombos({ items: combos, total: data.total ?? combos.length, page: data.page ?? 1, pageSize: data.pageSize ?? state.pageSize });
+                    state.combosPage = data.page ?? 1;
                 }
             }
             function renderCombos({ items, total, page, pageSize }) {
                 el.combosBody.innerHTML = items.map(c => `
               <tr>
                 <td>${c.id}</td>
-                <td>${c.name}</td>
+                <td>${c.title || c.name}</td>
                 <td>${c.shopName || '-'}</td>
                 <td class="text-end">$${c.price}</td>
                 <td>${(c.items || []).map(i => `${i.itemName || ('項目#' + i.menuItemId)} ×${i.quantity}`).join('、')}</td>
@@ -843,8 +1279,8 @@
                 const id = e.currentTarget.dataset.id;
                 const act = e.currentTarget.dataset.act;
                 if (act === 'edit-combo') {
-                    const c = null; // DB 目前沒有明細，直接開空白
-                    openComboModal(c); el.comboId.value = id;
+                    const c = state.combosAll?.find(combo => keyOf(combo.id) === keyOf(id));
+                    openComboModal(c || null); el.comboId.value = id;
                 } else if (act === 'del-combo') {
                     if (!confirm('確定刪除？')) return;
                     await removeCombo(id); loadCombos(state.combosPage);
@@ -852,8 +1288,17 @@
             }
             function openComboModal(c) {
                 el.comboForm.reset();
+                const shopId = c?.shopId || (IS_ADMIN ? (el.comboShopId?.value || '') : SHOP_ID);
+                renderComboShopOptions(shopId);
+                if (el.comboShopId) {
+                    el.comboShopId.value = shopId || '';
+                    if (shopId && el.comboShopId.value !== shopId) {
+                        el.comboShopId.value = '';
+                    }
+                }
+                renderComboItemSelect(shopId);
                 el.comboId.value = c?.id || '';
-                el.comboName.value = c?.name || '';
+                el.comboName.value = c?.title || c?.name || '';
                 el.comboPrice.value = c?.price || '';
                 if (el.comboActive) {
                     el.comboActive.checked = (c?.isActive ?? true);
@@ -882,6 +1327,13 @@
                 new bootstrap.Modal(el.comboModal).show();
             }
             el.btnNewCombo?.addEventListener('click', e => { e.preventDefault(); openComboModal(null); });
+            el.comboShopId?.addEventListener('change', () => {
+                const shopId = el.comboShopId?.value || '';
+                renderComboItemSelect(shopId);
+                if (el.comboLines) {
+                    el.comboLines.innerHTML = '';
+                }
+            });
             function bindComboLineEvents() {
                 if (!el.comboLines) return;
                 el.comboLines.querySelectorAll('[data-act=rm-line]').forEach(btn => {
@@ -894,9 +1346,9 @@
                 const selected = Array.from(el.comboItemSelect.selectedOptions || []).filter(opt => opt.value);
                 if (!selected.length) return;
                 selected.forEach(opt => {
-                    const id = parseInt(opt.value, 10);
+                    const id = opt.value;
                     if (!id) return;
-                    const found = state.allItemsForCombo.find(m => String(m.id) === String(id));
+                    const found = state.allItemsForCombo.find(m => keyOf(m.id) === keyOf(id));
                     if (!found) return;
                     let tr = el.comboLines.querySelector(`tr[data-menu-id="${id}"]`);
                     if (!tr) {
@@ -920,8 +1372,17 @@
                     name: el.comboName.value.trim(),
                     price: parseFloat(el.comboPrice.value || '0'),
                     isActive: el.comboActive ? el.comboActive.checked : true,
-                    items: $all('#comboLines tr').map(tr => ({ menuItemId: parseInt(tr.dataset.menuId), quantity: Math.max(1, parseInt(tr.querySelector('input').value || '1')) }))
+                    shopId: IS_ADMIN ? (el.comboShopId?.value || '') : SHOP_ID,
+                    items: $all('#comboLines tr').map(tr => ({
+                        menuItemId: String(tr.dataset.menuId || ''),
+                        quantity: Math.max(1, parseInt(tr.querySelector('input').value || '1', 10))
+                    })).filter(item => item.menuItemId)
                 };
+                if (!payload.shopId) {
+                    toast('請選擇店家');
+                    el.comboShopId?.focus();
+                    return;
+                }
                 if (!payload.items.length) {
                     toast('請至少加入一個餐點');
                     return;
@@ -935,8 +1396,9 @@
                     const form = new URLSearchParams();
                     form.append('actionType', id ? 'Update' : 'Create');
                     form.append('model.Id', id ? id : '');
-                    form.append('model.ShopId', SHOP_ID);
-                    form.append('model.ComboMeal', payload.name || '');
+                    form.append('model.ShopId', payload.shopId || '');
+                    form.append('model.Name', payload.name || '');
+                    form.append('model.ComboMeal', JSON.stringify(payload.items || []));
                     form.append('model.Money', (payload.price || 0).toString());
                     form.append('model.IsActive', payload.isActive ? 'true' : 'false');
                     const res = await fetch('/Home/UpdateCombo', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }, body: form.toString() });
@@ -945,9 +1407,9 @@
                     if (state.demo) {
                         if (method === 'POST') {
                             const maxId = Math.max(0, ...state.combos.map(x => x.id || 0));
-                            state.combos.push({ id: maxId + 1, ...payload });
+                            state.combos.push({ id: maxId + 1, ...payload, title: payload.name });
                         } else {
-                            Object.assign(state.combos.find(x => String(x.id) === String(id)), { id, ...payload });
+                            Object.assign(state.combos.find(x => String(x.id) === String(id)), { id, ...payload, title: payload.name });
                         }
                         return;
                     }
@@ -962,7 +1424,11 @@
                     const res = await fetch('/Home/UpdateCombo', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }, body: form.toString() });
                     if (!res.ok) throw new Error(await res.text());
                 } catch (err) {
-                    if (state.demo) { state.combos = state.combos.filter(x => String(x.id) !== String(id)); return; }
+                    if (state.demo) {
+                        state.combos = state.combos.filter(x => String(x.id) !== String(id));
+                        state.combosAll = state.combosAll?.filter?.(x => String(x.id) !== String(id)) || state.combosAll;
+                        return;
+                    }
                     toast('刪除套餐失敗：' + (err.message || err));
                 }
             }
@@ -1128,9 +1594,12 @@
                     }));
                     state.shops = mapped;
                     renderItemShopOptions(el.itemShopId?.value || '');
+                    renderComboShopOptions(el.comboShopId?.value || '');
+                    renderCategoryShopOptions(el.categoryShopId?.value || '');
 
                     const kw = (el.kwShops?.value || '').trim();
-                    let filtered = kw ? mapped.filter(x => [x.name, x.phone, x.account, x.addr].some(v => (v || '').includes(kw))) : mapped;
+                    const visible = IS_ADMIN ? mapped : mapped.filter(x => keyOf(x.id) === keyOf(SHOP_ID));
+                    let filtered = kw ? visible.filter(x => [x.name, x.phone, x.account, x.addr].some(v => (v || '').includes(kw))) : visible;
                     const actVal = el.activeShops?.value;
                     if (actVal !== undefined && actVal !== '') {
                         const flag = actVal === 'true';
@@ -1150,10 +1619,14 @@
                 } catch (err) {
                     console.warn('loadShops failed', err);
                     const data = await api(`/api/shops?page=${page}&pageSize=${state.pageSize}`);
-                    state.shops = data.items || [];
-                    renderShops(data);
-                    state.shopsPage = data.page;
+                    const items = data.items || [];
+                    state.shops = items;
                     renderItemShopOptions(el.itemShopId?.value || '');
+                    renderComboShopOptions(el.comboShopId?.value || '');
+                    renderCategoryShopOptions(el.categoryShopId?.value || '');
+                    const visible = IS_ADMIN ? items : items.filter(x => keyOf(x.id) === keyOf(SHOP_ID));
+                    renderShops({ items: visible, total: data.total ?? visible.length, page: data.page ?? 1, pageSize: data.pageSize ?? state.pageSize });
+                    state.shopsPage = data.page ?? 1;
                 }
             }
             function renderShops({ items, total, page, pageSize }) {
@@ -1271,10 +1744,11 @@
 
             // 事件與初始化
             el.btnSearchItems?.addEventListener('click', () => loadItems(1));
+            el.btnSearchCategories?.addEventListener('click', () => loadCategories(1));
             el.btnSearchCombos?.addEventListener('click', () => loadCombos(1));
             el.btnSearchTables?.addEventListener('click', () => loadTables(1));
             el.btnSearchShops?.addEventListener('click', () => loadShops(1));
-            el.toggleDemo?.addEventListener('click', () => { state.demo = !state.demo; showDemoBanner(state.demo); if (state.demo) { toast('切至 Demo 模式'); } loadItems(); loadCombos(); loadTables(); loadShops(); });
+            el.toggleDemo?.addEventListener('click', () => { state.demo = !state.demo; showDemoBanner(state.demo); if (state.demo) { toast('切至 Demo 模式'); } loadItems(); loadCategories(); loadCombos(); loadTables(); loadShops(); });
 
             document.getElementById('apiBaseText').textContent = apiBase || '(同網域)';
 
@@ -1291,7 +1765,17 @@
             });
 
             // 初始載入
-            loadItems(); loadCombos(); loadTables(); loadShops();
+            (async () => {
+                try {
+                    await loadShops();
+                    await loadCategories();
+                    await loadItems();
+                    await loadCombos();
+                    await loadTables();
+                } catch (err) {
+                    console.error('初始載入失敗', err);
+                }
+            })();
         })();
     </script>
 </body>
