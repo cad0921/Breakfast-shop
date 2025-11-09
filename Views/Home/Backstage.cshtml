@@ -619,6 +619,10 @@
                 toggleDemo: $('#toggleDemo'),
             };
 
+            const toastElement = document.getElementById('appToast');
+            const toastBody = document.getElementById('toastBody');
+            const toastInstance = toastElement ? bootstrap.Toast.getOrCreateInstance(toastElement) : null;
+
             if (el.currentShopLabel) el.currentShopLabel.textContent = SHOP_NAME || '(未命名)';
             if (!IS_ADMIN) {
                 el.itemShopField?.classList.add('d-none');
@@ -640,7 +644,16 @@
                 el.shopPassword.setAttribute('minlength', '6');
             }
 
-            function toast(msg) { console.log('[toast]', msg); }
+            function toast(msg) {
+                if (toastBody) {
+                    toastBody.textContent = msg;
+                }
+                if (toastInstance) {
+                    toastInstance.show();
+                } else {
+                    console.log('[toast]', msg);
+                }
+            }
             function showDemoBanner(show) { el.demoBanner?.classList.toggle('d-none', !show); }
             function tag(v, onText = '是', offText = '否') { return `<span class="tag ${v ? 'on' : 'off'}">${v ? onText : offText}</span>` }
             function pager(container, total, page, pageSize, onClick) {
@@ -1497,6 +1510,55 @@
                     renderTables(data); state.tablesPage = data.page;
                 }
             }
+            function buildTableOrderLink(tableId) {
+                if (!tableId) return '';
+                const origin = window.location.origin || (window.location.protocol + '//' + window.location.host);
+                const normalizedOrigin = origin.replace(/\/$/, '');
+                return `${normalizedOrigin}/Home/Order?tableId=${encodeURIComponent(tableId)}`;
+            }
+
+            async function copyTextToClipboard(text) {
+                if (!text) throw new Error('text is empty');
+                if (navigator.clipboard?.writeText) {
+                    await navigator.clipboard.writeText(text);
+                    return;
+                }
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.setAttribute('readonly', '');
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                textarea.style.pointerEvents = 'none';
+                document.body.appendChild(textarea);
+                textarea.focus();
+                textarea.select();
+                const ok = document.execCommand('copy');
+                document.body.removeChild(textarea);
+                if (!ok) throw new Error('execCommand copy failed');
+            }
+
+            async function copyTableLink(table) {
+                const link = buildTableOrderLink(table?.id || table?.Id);
+                if (!link) {
+                    toast('找不到桌號連結');
+                    return;
+                }
+                try {
+                    await copyTextToClipboard(link);
+                    const parts = [];
+                    const shopName = table?.shopName || table?.ShopName || '';
+                    const code = table?.code || table?.Code || table?.number || table?.Number || '';
+                    if (shopName) parts.push(shopName);
+                    if (code) parts.push(`桌號 ${code}`);
+                    const label = parts.length ? `「${parts.join('｜')}」` : '';
+                    toast(`已複製${label}點餐連結`);
+                } catch (err) {
+                    console.warn('copyTableLink failed', err);
+                    window.prompt('請手動複製以下點餐連結', link);
+                    toast('無法自動複製，請手動複製點餐連結');
+                }
+            }
+
             function renderTables({ items, total, page, pageSize }) {
                 const body = el.tablesBody;
                 if (!body) return;
@@ -1509,8 +1571,9 @@
                 <td>${tag(!!t.isActive, '啟用', '停用')}</td>
                 <td>
                   <div class="btn-group btn-group-sm">
-                    <button class="btn btn-outline-secondary" data-act="edit-table" data-id="${t.id}">編輯</button>
-                    <button class="btn btn-outline-danger" data-act="del-table" data-id="${t.id}">刪除</button>
+                    <button type="button" class="btn btn-outline-primary" data-act="copy-table-link" data-id="${t.id}">複製連結</button>
+                    <button type="button" class="btn btn-outline-secondary" data-act="edit-table" data-id="${t.id}">編輯</button>
+                    <button type="button" class="btn btn-outline-danger" data-act="del-table" data-id="${t.id}">刪除</button>
                   </div>
                 </td>
               </tr>`).join('');
@@ -1520,7 +1583,10 @@
             function onTableAction(e) {
                 const id = e.currentTarget.dataset.id;
                 const act = e.currentTarget.dataset.act;
-                if (act === 'edit-table') {
+                if (act === 'copy-table-link') {
+                    const t = state.tables.find(x => String(x.id) === String(id));
+                    copyTableLink(t || { id });
+                } else if (act === 'edit-table') {
                     const t = state.tables.find(x => String(x.id) === String(id));
                     openTableModal(t || null);
                 } else if (act === 'del-table') {
