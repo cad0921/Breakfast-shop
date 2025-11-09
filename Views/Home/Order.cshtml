@@ -1,6 +1,8 @@
+@using breakfastshop.Models
+
 @{
     ViewBag.Title = "Order";
-    var presetTable = ViewBag.PreselectedTable as breakfastshop.Models.PresetTableViewModel;
+    var presetTable = ViewBag.PreselectedTable as PresetTableViewModel;
     bool hasPresetTable = presetTable != null;
     bool tableLookupFailed = ViewBag.TableLookupFailed == true;
     string presetTableJson = hasPresetTable
@@ -54,10 +56,10 @@
         <div class="order-sidebar">
             <section class="section-card order-options">
                 <header class="section-title">用餐方式</header>
-                <label class="order-option@dineInLabelClass">
+                <label class="order-option@(dineInLabelClass)">
                     <input type="radio" name="orderType" value="DineIn" @Html.Raw(dineInAttributes) /> 內用
                 </label>
-                <label class="order-option@takeoutLabelClass">
+                <label class="order-option@(takeoutLabelClass)">
                     <input type="radio" name="orderType" value="TakeOut" @Html.Raw(takeoutAttributes) /> 外帶
                 </label>
             </section>
