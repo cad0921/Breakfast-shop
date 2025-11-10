@@ -188,399 +188,253 @@
     }
 </style>
 
-@section scripts {
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/2.4.3/jquery.signalR.min.js"></script>
-    <script src="~/signalr/hubs"></script>
-    <script>
-        (function () {
-            const ordersContainer = document.getElementById('ordersContainer');
-            const statusFilter = document.getElementById('statusFilter');
-            const shopFilter = document.getElementById('shopFilter');
-            const refreshButton = document.getElementById('refreshOrders');
-            const messageBox = document.getElementById('receivingMessage');
-            let refreshTimer = null;
+<script>
+    (function () {
+        const ordersContainer = document.getElementById('ordersContainer');
+        const statusFilter = document.getElementById('statusFilter');
+        const shopFilter = document.getElementById('shopFilter');
+        const refreshButton = document.getElementById('refreshOrders');
+        const messageBox = document.getElementById('receivingMessage');
+        let refreshTimer = null;
 
-            const queryParams = new URLSearchParams(window.location.search || '');
-            const presetShopId = (() => {
-                for (const [key, value] of queryParams.entries()) {
-                    if (!value) continue;
-                    const normalizedKey = key.trim().toLowerCase();
-                    if (normalizedKey === 'id' || normalizedKey === 'shopid') {
-                        return value;
-                    }
-                }
-                return '';
-            })();
-            const hasPresetShop = presetShopId.length > 0;
-
-            let sessionShopId = '';
-            let sessionShopName = '';
-            let isAdmin = false;
-            try {
-                sessionShopId = sessionStorage.getItem('ll-shop-id') || '';
-                sessionShopName = sessionStorage.getItem('ll-shop-name') || '';
-                isAdmin = sessionStorage.getItem('ll-is-admin') === 'true';
-            } catch (_) {
-                /* ignore session storage errors */
-            }
-
-            const forcedShopId = (function () {
-                if (hasPresetShop) return presetShopId;
-                if (!isAdmin && sessionShopId) return sessionShopId;
-                return '';
-            })();
-
-            const forcedShopName = (function () {
-                if (hasPresetShop) return '';
-                if (!isAdmin && sessionShopName) return sessionShopName;
-                return '';
-            })();
-
-            const statusLabel = {
-                Pending: '待製作',
-                Preparing: '製作中',
-                Completed: '已完成',
-                Cancelled: '已取消'
-            };
-
-            function formatHeader(order) {
-                if (order.OrderType === 'TakeOut') {
-                    return '外帶取餐碼：' + (order.TakeoutCode || '未產生');
-                }
-                if (order.TableNumber != null) {
-                    const zone = order.TableZone ? '（' + order.TableZone + '）' : '';
-                    return '內用桌號：' + order.TableNumber + zone;
-                }
-                return '內用訂單';
-            }
-
-            function renderOrders(orders) {
-                ordersContainer.innerHTML = '';
-                if (!orders || orders.length === 0) {
-                    const empty = document.createElement('div');
-                    empty.className = 'empty-state';
-                    empty.textContent = '目前沒有訂單。';
-                    ordersContainer.appendChild(empty);
-                    return;
-                }
-
-                orders.forEach(order => {
-                    const card = document.createElement('div');
-                    card.className = 'order-card';
-
-                    const header = document.createElement('div');
-                    header.className = 'order-header';
-
-                    const headerLeft = document.createElement('div');
-                    headerLeft.className = 'order-header-left';
-                    if (order.ShopName) {
-                        const shop = document.createElement('span');
-                        shop.className = 'shop-pill';
-                        shop.textContent = order.ShopName;
-                        headerLeft.appendChild(shop);
-                    }
-                    const title = document.createElement('div');
-                    title.className = 'order-title';
-                    title.textContent = formatHeader(order);
-                    headerLeft.appendChild(title);
-                    header.appendChild(headerLeft);
-
-                    const status = document.createElement('span');
-                    status.className = 'status-pill';
-                    status.textContent = statusLabel[order.Status] || order.Status;
-                    header.appendChild(status);
-                    card.appendChild(header);
-
-                    if (order.Notes) {
-                        const notes = document.createElement('div');
-                        notes.textContent = '備註：' + order.Notes;
-                        notes.style.marginBottom = '0.5rem';
-                        card.appendChild(notes);
-                    }
-
-                    const itemList = document.createElement('ul');
-                    itemList.className = 'order-items';
-                    order.Items.forEach(item => {
-                        const li = document.createElement('li');
-                        const subtotal = (item.UnitPrice * item.Quantity).toFixed(0);
-                        li.textContent = item.MealName + ' x ' + item.Quantity + ' ($' + subtotal + ')';
-                        if (item.Notes) {
-                            li.textContent += ' - ' + item.Notes;
-                        }
-                        itemList.appendChild(li);
-                    });
-                    card.appendChild(itemList);
-
-                    const actions = document.createElement('div');
-                    actions.className = 'order-actions';
-
-                    if (order.Status === 'Pending') {
-                        actions.appendChild(createActionButton(order.Id, 'Preparing', '開始製作'));
-                    }
-                    if (order.Status === 'Pending' || order.Status === 'Preparing') {
-                        actions.appendChild(createActionButton(order.Id, 'Completed', '標記完成'));
-                    }
-
-                    if (actions.children.length > 0) {
-                        card.appendChild(actions);
-                    }
-
-                    ordersContainer.appendChild(card);
-                });
-            }
-
-            function createActionButton(orderId, status, label) {
-                const button = document.createElement('button');
-                button.type = 'button';
-                button.textContent = label;
-                button.addEventListener('click', () => updateStatus(orderId, status));
-                return button;
-            }
-
-            function getActiveShopId() {
-                if (forcedShopId) {
-                    return forcedShopId;
-                }
-                return shopFilter ? shopFilter.value : '';
-            }
-
-            function fetchOrders() {
-                const status = statusFilter ? statusFilter.value : '';
-                const shopId = getActiveShopId();
-                const params = new URLSearchParams();
-                if (status) params.append('status', status);
-                if (shopId) params.append('shopId', shopId);
-                const query = params.toString();
-
-                messageBox.textContent = '載入訂單中…';
-                fetch('@Url.Action("GetReceivingOrders", "Home")' + (query ? '?' + query : ''))
-                    .then(r => r.json())
-                    .then(data => {
-                        messageBox.textContent = '';
-                        renderOrders(data);
-                    })
-                    .catch(() => {
-                        messageBox.textContent = '無法載入訂單，請稍後再試。';
-                    });
-            }
-
-            function updateStatus(orderId, status) {
-                messageBox.textContent = '更新訂單狀態中…';
-                fetch('@Url.Action("UpdateOrderStatus", "Home")', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ OrderId: orderId, Status: status })
-                })
-                    .then(async response => {
-                        const payload = await response.json();
-                        if (!response.ok || !payload.ok) {
-                            throw new Error(payload.error || '更新失敗');
-                        }
-                        messageBox.textContent = '狀態已更新。';
-                        fetchOrders();
-                    })
-                    .catch(err => {
-                        messageBox.textContent = err.message;
-                    });
-            }
-
-            function startAutoRefresh() {
-                if (refreshTimer) clearInterval(refreshTimer);
-                refreshTimer = setInterval(fetchOrders, 10000);
-            }
-
-            function lockShopFilter(shopList) {
-                if (!shopFilter || !forcedShopId) {
-                    return;
-                }
-
-                const normalized = forcedShopId.trim().toLowerCase();
-                let displayName = forcedShopName;
-                if (!displayName && Array.isArray(shopList)) {
-                    const matched = shopList.find(shop => {
-                        const id = (shop.Id || shop.id || '').toString();
-                        return id.trim().toLowerCase() === normalized;
-                    });
-                    if (matched) {
-                        displayName = matched.Name || matched.name || displayName;
-                    }
-                }
-
-                const option = document.createElement('option');
-                option.value = forcedShopId;
-                option.textContent = displayName || '指定店家';
-
-                shopFilter.innerHTML = '';
-                shopFilter.appendChild(option);
-                shopFilter.value = forcedShopId;
-                shopFilter.disabled = true;
-
-                const filterLabel = shopFilter.closest('label');
-                if (filterLabel) {
-                    filterLabel.title = hasPresetShop ? '此頁面已依網址指定店家' : '此頁面已鎖定為登入店家';
+        const queryParams = new URLSearchParams(window.location.search || '');
+        const presetShopId = (() => {
+            for (const [key, value] of queryParams.entries()) {
+                if (!value) continue;
+                const normalizedKey = key.trim().toLowerCase();
+                if (normalizedKey === 'id' || normalizedKey === 'shopid') {
+                    return value;
                 }
             }
-
-            function loadShops() {
-                if (!shopFilter) {
-                    return Promise.resolve([]);
-                }
-
-                return fetch('@Url.Action("GetShop", "Home")?onlyActive=true')
-                    .then(r => r.json())
-                    .then(data => {
-                        const shopList = Array.isArray(data) ? data : [];
-                        shopFilter.innerHTML = '';
-
-                        if (!forcedShopId) {
-                            const allOption = document.createElement('option');
-                            allOption.value = '';
-                            allOption.textContent = '全部店家';
-                            shopFilter.appendChild(allOption);
-
-                            shopList.forEach(shop => {
-                                if (!shop || !shop.Id) return;
-                                const option = document.createElement('option');
-                                option.value = shop.Id;
-                                option.textContent = shop.Name || '未命名店家';
-                                shopFilter.appendChild(option);
-                            });
-                        }
-
-                        lockShopFilter(shopList);
-                        return shopList;
-                    })
-                    .catch(() => {
-                        shopFilter.innerHTML = '';
-                        const option = document.createElement('option');
-                        option.value = forcedShopId || '';
-                        option.textContent = forcedShopId ? (forcedShopName || '指定店家') : '全部店家';
-                        shopFilter.appendChild(option);
-
-                        if (forcedShopId) {
-                            shopFilter.disabled = true;
-                            const filterLabel = shopFilter.closest('label');
-                            if (filterLabel) {
-                                filterLabel.title = hasPresetShop ? '此頁面已依網址指定店家' : '此頁面已鎖定為登入店家';
-                            }
-                        }
-
-                        return [];
-                    });
-            }
-
-            let orderHubProxy = null;
-            let subscribedShopIdNormalized = '';
-            let subscribedShopIdRaw = '';
-
-            function normalizeShopId(value) {
-                return value ? value.trim().toLowerCase() : '';
-            }
-
-            function subscribeToShop(shopIdRaw) {
-                if (!orderHubProxy || !orderHubProxy.server || typeof $ === 'undefined' || !$.connection || !$.signalR) {
-                    return;
-                }
-
-                const targetRaw = shopIdRaw || '';
-                const normalized = normalizeShopId(targetRaw);
-                if (normalized === subscribedShopIdNormalized) {
-                    return;
-                }
-
-                const previousRaw = subscribedShopIdRaw;
-                subscribedShopIdRaw = targetRaw;
-                subscribedShopIdNormalized = normalized;
-
-                const hub = $.connection.hub;
-                if (!hub) {
-                    return;
-                }
-
-                function safeInvoke(method, value) {
-                    try {
-                        const action = orderHubProxy.server[method];
-                        if (typeof action === 'function') {
-                            const result = action.call(orderHubProxy.server, value);
-                            if (result && typeof result.then === 'function') {
-                                result.catch(() => { /* ignore */ });
-                            }
-                        }
-                    } catch (_) {
-                        /* ignore errors */
-                    }
-                }
-
-                function apply() {
-                    if (previousRaw) {
-                        safeInvoke('leaveShop', previousRaw);
-                    }
-                    if (targetRaw) {
-                        safeInvoke('joinShop', targetRaw);
-                    }
-                }
-
-                if (hub.state === $.signalR.connectionState.connected) {
-                    apply();
-                } else if (hub.state === $.signalR.connectionState.disconnected) {
-                    hub.start().done(apply);
-                }
-            }
-
-            function setupSignalR() {
-                if (typeof $ === 'undefined' || !$.connection || !$.connection.orderHub) {
-                    return;
-                }
-
-                orderHubProxy = $.connection.orderHub;
-                orderHubProxy.client.ordersChanged = function () {
-                    fetchOrders();
-                };
-
-                const hub = $.connection.hub;
-                if (!hub) {
-                    return;
-                }
-
-                hub.disconnected(function () {
-                    setTimeout(function () {
-                        if (hub.state === $.signalR.connectionState.disconnected) {
-                            hub.start().done(function () {
-                                subscribeToShop(getActiveShopId());
-                            });
-                        }
-                    }, 3000);
-                });
-
-                hub.reconnected(function () {
-                    subscribeToShop(getActiveShopId());
-                });
-
-                hub.start().done(function () {
-                    subscribeToShop(getActiveShopId());
-                });
-            }
-
-            function refreshAndSubscribe() {
-                fetchOrders();
-                subscribeToShop(getActiveShopId());
-            }
-
-            refreshButton.addEventListener('click', refreshAndSubscribe);
-            statusFilter.addEventListener('change', refreshAndSubscribe);
-            if (shopFilter) {
-                shopFilter.addEventListener('change', refreshAndSubscribe);
-            }
-
-            loadShops()
-                .catch(() => [])
-                .then(() => {
-                    refreshAndSubscribe();
-                    startAutoRefresh();
-                    setupSignalR();
-                });
+            return '';
         })();
-    </script>
-}
+        const hasPresetShop = presetShopId.length > 0;
 
+        const statusLabel = {
+            Pending: '待製作',
+            Preparing: '製作中',
+            Completed: '已完成',
+            Cancelled: '已取消'
+        };
 
+        function formatHeader(order) {
+            if (order.OrderType === 'TakeOut') {
+                return '外帶取餐碼：' + (order.TakeoutCode || '未產生');
+            }
+            if (order.TableNumber != null) {
+                const zone = order.TableZone ? '（' + order.TableZone + '）' : '';
+                return '內用桌號：' + order.TableNumber + zone;
+            }
+            return '內用訂單';
+        }
+
+        function renderOrders(orders) {
+            ordersContainer.innerHTML = '';
+            if (!orders || orders.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'empty-state';
+                empty.textContent = '目前沒有訂單。';
+                ordersContainer.appendChild(empty);
+                return;
+            }
+
+            orders.forEach(order => {
+                const card = document.createElement('div');
+                card.className = 'order-card';
+
+                const header = document.createElement('div');
+                header.className = 'order-header';
+
+                const headerLeft = document.createElement('div');
+                headerLeft.className = 'order-header-left';
+                if (order.ShopName) {
+                    const shop = document.createElement('span');
+                    shop.className = 'shop-pill';
+                    shop.textContent = order.ShopName;
+                    headerLeft.appendChild(shop);
+                }
+                const title = document.createElement('div');
+                title.className = 'order-title';
+                title.textContent = formatHeader(order);
+                headerLeft.appendChild(title);
+                header.appendChild(headerLeft);
+
+                const status = document.createElement('span');
+                status.className = 'status-pill';
+                status.textContent = statusLabel[order.Status] || order.Status;
+                header.appendChild(status);
+                card.appendChild(header);
+
+                if (order.Notes) {
+                    const notes = document.createElement('div');
+                    notes.textContent = '備註：' + order.Notes;
+                    notes.style.marginBottom = '0.5rem';
+                    card.appendChild(notes);
+                }
+
+                const itemList = document.createElement('ul');
+                itemList.className = 'order-items';
+                order.Items.forEach(item => {
+                    const li = document.createElement('li');
+                    const subtotal = (item.UnitPrice * item.Quantity).toFixed(0);
+                    li.textContent = item.MealName + ' x ' + item.Quantity + ' ($' + subtotal + ')';
+                    if (item.Notes) {
+                        li.textContent += ' - ' + item.Notes;
+                    }
+                    itemList.appendChild(li);
+                });
+                card.appendChild(itemList);
+
+                const actions = document.createElement('div');
+                actions.className = 'order-actions';
+
+                if (order.Status === 'Pending') {
+                    actions.appendChild(createActionButton(order.Id, 'Preparing', '開始製作'));
+                }
+                if (order.Status === 'Pending' || order.Status === 'Preparing') {
+                    actions.appendChild(createActionButton(order.Id, 'Completed', '標記完成'));
+                }
+
+                if (actions.children.length > 0) {
+                    card.appendChild(actions);
+                }
+
+                ordersContainer.appendChild(card);
+            });
+        }
+
+        function createActionButton(orderId, status, label) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.textContent = label;
+            button.addEventListener('click', () => updateStatus(orderId, status));
+            return button;
+        }
+
+        function fetchOrders() {
+            const status = statusFilter ? statusFilter.value : '';
+            const shopId = hasPresetShop ? presetShopId : (shopFilter ? shopFilter.value : '');
+            const params = new URLSearchParams();
+            if (status) params.append('status', status);
+            if (shopId) params.append('shopId', shopId);
+            const query = params.toString();
+
+            messageBox.textContent = '載入訂單中…';
+            fetch('@Url.Action("GetReceivingOrders", "Home")' + (query ? '?' + query : ''))
+                .then(r => r.json())
+                .then(data => {
+                    messageBox.textContent = '';
+                    renderOrders(data);
+                })
+                .catch(() => {
+                    messageBox.textContent = '無法載入訂單，請稍後再試。';
+                });
+        }
+
+        function updateStatus(orderId, status) {
+            messageBox.textContent = '更新訂單狀態中…';
+            fetch('@Url.Action("UpdateOrderStatus", "Home")', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ OrderId: orderId, Status: status })
+            })
+                .then(async response => {
+                    const payload = await response.json();
+                    if (!response.ok || !payload.ok) {
+                        throw new Error(payload.error || '更新失敗');
+                    }
+                    messageBox.textContent = '狀態已更新。';
+                    fetchOrders();
+                })
+                .catch(err => {
+                    messageBox.textContent = err.message;
+                });
+        }
+
+        function startAutoRefresh() {
+            if (refreshTimer) clearInterval(refreshTimer);
+            refreshTimer = setInterval(fetchOrders, 10000);
+        }
+
+        function lockShopFilterIfNeeded() {
+            if (!hasPresetShop || !shopFilter) {
+                return;
+            }
+
+            const normalizedPreset = presetShopId.toLowerCase();
+            let matchedValue = '';
+            for (const option of shopFilter.options) {
+                if ((option.value || '').toLowerCase() === normalizedPreset) {
+                    matchedValue = option.value;
+                    break;
+                }
+            }
+
+            if (!matchedValue) {
+                const presetOption = document.createElement('option');
+                presetOption.value = presetShopId;
+                presetOption.textContent = '指定店家';
+                shopFilter.appendChild(presetOption);
+                matchedValue = presetShopId;
+            }
+
+            shopFilter.value = matchedValue;
+            shopFilter.disabled = true;
+
+            const filterLabel = shopFilter.closest('label');
+            if (filterLabel) {
+                filterLabel.title = '此頁面已依網址指定店家';
+            }
+        }
+
+        function loadShops() {
+            if (!shopFilter) {
+                return Promise.resolve();
+            }
+
+            return fetch('@Url.Action("GetShop", "Home")?onlyActive=true')
+                .then(r => r.json())
+                .then(data => {
+                    shopFilter.innerHTML = '';
+
+                    const allOption = document.createElement('option');
+                    allOption.value = '';
+                    allOption.textContent = '全部店家';
+                    shopFilter.appendChild(allOption);
+
+                    const shopList = Array.isArray(data) ? data : [];
+                    shopList.forEach(shop => {
+                        if (!shop || !shop.Id) return;
+                        const option = document.createElement('option');
+                        option.value = shop.Id;
+                        option.textContent = shop.Name || '未命名店家';
+                        shopFilter.appendChild(option);
+                    });
+
+                    lockShopFilterIfNeeded();
+                })
+                .catch(() => {
+                    shopFilter.innerHTML = '';
+                    const fallback = document.createElement('option');
+                    fallback.value = '';
+                    fallback.textContent = '全部店家';
+                    shopFilter.appendChild(fallback);
+
+                    lockShopFilterIfNeeded();
+                });
+        }
+
+        refreshButton.addEventListener('click', fetchOrders);
+        statusFilter.addEventListener('change', fetchOrders);
+        if (shopFilter) {
+            shopFilter.addEventListener('change', fetchOrders);
+        }
+
+        loadShops()
+            .catch(() => { /* ignore load errors, fallback already applied */ })
+            .then(() => {
+                fetchOrders();
+                startAutoRefresh();
+            });
+    })();
+</script>

@@ -367,7 +367,7 @@ VALUES (@Id, @OrderId, @MealId, @MealName, @Quantity, @UnitPrice, @Notes, @Creat
                     });
                 }
 
-                var response = new
+                return Json(new
                 {
                     ok = true,
                     order = new
@@ -384,10 +384,7 @@ VALUES (@Id, @OrderId, @MealId, @MealName, @Quantity, @UnitPrice, @Notes, @Creat
                         total,
                         items
                     }
-                };
-
-
-                return Json(response);
+                });
             }
             catch (Exception ex)
             {
@@ -482,20 +479,7 @@ ORDER BY o.CreatedAt ASC, i.CreateDate ASC;";
                     ["UpdatedAt"] = DateTime.UtcNow
                 };
 
-                Guid? shopId = null;
-                var orderInfo = _db.Query("SELECT TOP 1 ShopId FROM dbo.Orders WHERE Id=@Id", new Dictionary<string, object>
-                {
-                    ["Id"] = request.OrderId
-                });
-
-                if (orderInfo.Rows.Count > 0 && orderInfo.Rows[0]["ShopId"] != DBNull.Value)
-                {
-                    shopId = (Guid)orderInfo.Rows[0]["ShopId"];
-                }
-
                 int rows = _db.DoSQL("Update", "Orders", id: request.OrderId.ToString(), data: data);
-
-
                 return Json(new { ok = rows > 0, rows });
             }
             catch (Exception ex)
