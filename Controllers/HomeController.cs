@@ -7,6 +7,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Web.Mvc;
 using breakfastshop.Models;
+using breakfastshop.Services;
 
 namespace breakfastshop.Controllers
 {
@@ -367,7 +368,7 @@ VALUES (@Id, @OrderId, @MealId, @MealName, @Quantity, @UnitPrice, @Notes, @Creat
                     });
                 }
 
-                return Json(new
+                var response = new
                 {
                     ok = true,
                     order = new
@@ -384,7 +385,11 @@ VALUES (@Id, @OrderId, @MealId, @MealName, @Quantity, @UnitPrice, @Notes, @Creat
                         total,
                         items
                     }
-                });
+                };
+
+                OrderNotificationService.NotifyOrdersChanged(shopId);
+
+                return Json(response);
             }
             catch (Exception ex)
             {
@@ -479,7 +484,24 @@ ORDER BY o.CreatedAt ASC, i.CreateDate ASC;";
                     ["UpdatedAt"] = DateTime.UtcNow
                 };
 
+                Guid? shopId = null;
+                var orderInfo = _db.Query("SELECT TOP 1 ShopId FROM dbo.Orders WHERE Id=@Id", new Dictionary<string, object>
+                {
+                    ["Id"] = request.OrderId
+                });
+
+                if (orderInfo.Rows.Count > 0 && orderInfo.Rows[0]["ShopId"] != DBNull.Value)
+                {
+                    shopId = (Guid)orderInfo.Rows[0]["ShopId"];
+                }
+
                 int rows = _db.DoSQL("Update", "Orders", id: request.OrderId.ToString(), data: data);
+
+                if (rows > 0)
+                {
+                    OrderNotificationService.NotifyOrdersChanged(shopId);
+                }
+
                 return Json(new { ok = rows > 0, rows });
             }
             catch (Exception ex)
