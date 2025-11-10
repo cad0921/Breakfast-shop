@@ -394,7 +394,7 @@ VALUES (@Id, @OrderId, @MealId, @MealName, @Quantity, @UnitPrice, @Notes, @Creat
         }
 
         [HttpGet]
-        public JsonResult GetReceivingOrders(string status)
+        public JsonResult GetReceivingOrders(string status, Guid? shopId)
         {
             try
             {
@@ -406,11 +406,13 @@ LEFT JOIN dbo.[Table] AS t ON o.TableId = t.Id
 LEFT JOIN dbo.Shop AS s ON o.ShopId = s.Id
 INNER JOIN dbo.OrderItems AS i ON o.Id = i.OrderId
 WHERE (@Status IS NULL OR o.Status=@Status)
+  AND (@ShopId IS NULL OR o.ShopId=@ShopId)
 ORDER BY o.CreatedAt ASC, i.CreateDate ASC;";
 
                 var param = new Dictionary<string, object>
                 {
-                    ["Status"] = filterStatus == null ? (object)DBNull.Value : filterStatus
+                    ["Status"] = filterStatus == null ? (object)DBNull.Value : filterStatus,
+                    ["ShopId"] = shopId.HasValue ? (object)shopId.Value : DBNull.Value
                 };
 
                 var dt = _db.Query(sql, param);
