@@ -197,6 +197,19 @@
         const messageBox = document.getElementById('receivingMessage');
         let refreshTimer = null;
 
+        const queryParams = new URLSearchParams(window.location.search || '');
+        const presetShopId = (() => {
+            for (const [key, value] of queryParams.entries()) {
+                if (!value) continue;
+                const normalizedKey = key.trim().toLowerCase();
+                if (normalizedKey === 'id' || normalizedKey === 'shopid') {
+                    return value;
+                }
+            }
+            return '';
+        })();
+        const hasPresetShop = presetShopId.length > 0;
+
         const statusLabel = {
             Pending: '待製作',
             Preparing: '製作中',
@@ -300,7 +313,7 @@
 
         function fetchOrders() {
             const status = statusFilter ? statusFilter.value : '';
-            const shopId = shopFilter ? shopFilter.value : '';
+            const shopId = hasPresetShop ? presetShopId : (shopFilter ? shopFilter.value : '');
             const params = new URLSearchParams();
             if (status) params.append('status', status);
             if (shopId) params.append('shopId', shopId);
@@ -343,6 +356,37 @@
             refreshTimer = setInterval(fetchOrders, 10000);
         }
 
+        function lockShopFilterIfNeeded() {
+            if (!hasPresetShop || !shopFilter) {
+                return;
+            }
+
+            const normalizedPreset = presetShopId.toLowerCase();
+            let matchedValue = '';
+            for (const option of shopFilter.options) {
+                if ((option.value || '').toLowerCase() === normalizedPreset) {
+                    matchedValue = option.value;
+                    break;
+                }
+            }
+
+            if (!matchedValue) {
+                const presetOption = document.createElement('option');
+                presetOption.value = presetShopId;
+                presetOption.textContent = '指定店家';
+                shopFilter.appendChild(presetOption);
+                matchedValue = presetShopId;
+            }
+
+            shopFilter.value = matchedValue;
+            shopFilter.disabled = true;
+
+            const filterLabel = shopFilter.closest('label');
+            if (filterLabel) {
+                filterLabel.title = '此頁面已依網址指定店家';
+            }
+        }
+
         function loadShops() {
             if (!shopFilter) {
                 return Promise.resolve();
@@ -366,6 +410,8 @@
                         option.textContent = shop.Name || '未命名店家';
                         shopFilter.appendChild(option);
                     });
+
+                    lockShopFilterIfNeeded();
                 })
                 .catch(() => {
                     shopFilter.innerHTML = '';
@@ -373,6 +419,8 @@
                     fallback.value = '';
                     fallback.textContent = '全部店家';
                     shopFilter.appendChild(fallback);
+
+                    lockShopFilterIfNeeded();
                 });
         }
 
