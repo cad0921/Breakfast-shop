@@ -15,6 +15,12 @@
                 <option value="All">全部訂單</option>
             </select>
         </label>
+        <label>
+            店家篩選：
+            <select id="shopFilter">
+                <option value="">全部店家</option>
+            </select>
+        </label>
         <button id="refreshOrders" type="button">重新整理</button>
     </section>
 
@@ -186,6 +192,7 @@
     (function () {
         const ordersContainer = document.getElementById('ordersContainer');
         const statusFilter = document.getElementById('statusFilter');
+        const shopFilter = document.getElementById('shopFilter');
         const refreshButton = document.getElementById('refreshOrders');
         const messageBox = document.getElementById('receivingMessage');
         let refreshTimer = null;
@@ -292,9 +299,15 @@
         }
 
         function fetchOrders() {
-            const status = statusFilter.value;
+            const status = statusFilter ? statusFilter.value : '';
+            const shopId = shopFilter ? shopFilter.value : '';
+            const params = new URLSearchParams();
+            if (status) params.append('status', status);
+            if (shopId) params.append('shopId', shopId);
+            const query = params.toString();
+
             messageBox.textContent = '載入訂單中…';
-            fetch('@Url.Action("GetReceivingOrders", "Home")' + (status ? '?status=' + encodeURIComponent(status) : ''))
+            fetch('@Url.Action("GetReceivingOrders", "Home")' + (query ? '?' + query : ''))
                 .then(r => r.json())
                 .then(data => {
                     messageBox.textContent = '';
@@ -330,10 +343,50 @@
             refreshTimer = setInterval(fetchOrders, 10000);
         }
 
+        function loadShops() {
+            if (!shopFilter) {
+                return Promise.resolve();
+            }
+
+            return fetch('@Url.Action("GetShop", "Home")?onlyActive=true')
+                .then(r => r.json())
+                .then(data => {
+                    shopFilter.innerHTML = '';
+
+                    const allOption = document.createElement('option');
+                    allOption.value = '';
+                    allOption.textContent = '全部店家';
+                    shopFilter.appendChild(allOption);
+
+                    const shopList = Array.isArray(data) ? data : [];
+                    shopList.forEach(shop => {
+                        if (!shop || !shop.Id) return;
+                        const option = document.createElement('option');
+                        option.value = shop.Id;
+                        option.textContent = shop.Name || '未命名店家';
+                        shopFilter.appendChild(option);
+                    });
+                })
+                .catch(() => {
+                    shopFilter.innerHTML = '';
+                    const fallback = document.createElement('option');
+                    fallback.value = '';
+                    fallback.textContent = '全部店家';
+                    shopFilter.appendChild(fallback);
+                });
+        }
+
         refreshButton.addEventListener('click', fetchOrders);
         statusFilter.addEventListener('change', fetchOrders);
+        if (shopFilter) {
+            shopFilter.addEventListener('change', fetchOrders);
+        }
 
-        fetchOrders();
-        startAutoRefresh();
+        loadShops()
+            .catch(() => { /* ignore load errors, fallback already applied */ })
+            .then(() => {
+                fetchOrders();
+                startAutoRefresh();
+            });
     })();
 </script>
