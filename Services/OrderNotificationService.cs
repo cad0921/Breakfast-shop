@@ -6,7 +6,10 @@ namespace breakfastshop.Services
 {
     public static class OrderNotificationService
     {
-        private static readonly IHubContext HubContext = GlobalHost.ConnectionManager.GetHubContext<OrderHub>();
+        private static IHubContext GetHubContext()
+        {
+            return GlobalHost.ConnectionManager?.GetHubContext<OrderHub>();
+        }
 
         private static string Normalize(Guid? shopId)
         {
@@ -35,18 +38,19 @@ namespace breakfastshop.Services
 
         private static void NotifyOrdersChangedCore(string normalizedShopId)
         {
-            if (HubContext == null)
+            var hubContext = GetHubContext();
+            if (hubContext == null)
             {
                 return;
             }
 
             if (string.IsNullOrEmpty(normalizedShopId))
             {
-                HubContext.Clients.All.ordersChanged();
+                hubContext.Clients.All.ordersChanged();
             }
             else
             {
-                HubContext.Clients.Group(normalizedShopId).ordersChanged();
+                hubContext.Clients.Group(normalizedShopId).ordersChanged();
             }
         }
     }
