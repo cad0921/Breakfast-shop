@@ -67,7 +67,8 @@ namespace Microsoft.AspNet.SignalR
 
     internal static class HubLifetimeManagerStore
     {
-        private static readonly ConcurrentDictionary<Type, HubLifetimeManager> Managers = new();
+        private static readonly ConcurrentDictionary<Type, HubLifetimeManager> Managers =
+            new ConcurrentDictionary<Type, HubLifetimeManager>();
 
         public static HubLifetimeManager GetManager(Type hubType)
         {
@@ -78,10 +79,12 @@ namespace Microsoft.AspNet.SignalR
 
     internal sealed class HubLifetimeManager
     {
-        private readonly ConcurrentDictionary<string, ClientConnection> _connections = new(StringComparer.OrdinalIgnoreCase);
-        private readonly ConcurrentDictionary<string, HashSet<string>> _groups = new(StringComparer.OrdinalIgnoreCase);
-        private readonly List<Action<string, object[]>> _allHandlers = new();
-        private readonly object _allLock = new();
+        private readonly ConcurrentDictionary<string, ClientConnection> _connections =
+            new ConcurrentDictionary<string, ClientConnection>(StringComparer.OrdinalIgnoreCase);
+        private readonly ConcurrentDictionary<string, HashSet<string>> _groups =
+            new ConcurrentDictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+        private readonly List<Action<string, object[]>> _allHandlers = new List<Action<string, object[]>>();
+        private readonly object _allLock = new object();
 
         public IDisposable RegisterAllHandler(Action<string, object[]> handler)
         {
@@ -330,8 +333,8 @@ namespace Microsoft.AspNet.SignalR
 
     internal sealed class ClientConnection
     {
-        private readonly List<Action<string, object[]>> _handlers = new();
-        private readonly object _lock = new();
+        private readonly List<Action<string, object[]>> _handlers = new List<Action<string, object[]>>();
+        private readonly object _lock = new object();
 
         public ClientConnection(string connectionId)
         {
@@ -340,7 +343,7 @@ namespace Microsoft.AspNet.SignalR
 
         public string ConnectionId { get; }
 
-        public HashSet<string> Groups { get; } = new(StringComparer.OrdinalIgnoreCase);
+        public HashSet<string> Groups { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         public IDisposable RegisterHandler(Action<string, object[]> handler)
         {
