@@ -7,7 +7,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Web.Mvc;
 using breakfastshop.Models;
-using breakfastshop.Services;
 
 namespace breakfastshop.Controllers
 {
@@ -387,7 +386,6 @@ VALUES (@Id, @OrderId, @MealId, @MealName, @Quantity, @UnitPrice, @Notes, @Creat
                     }
                 };
 
-                OrderNotificationService.NotifyOrdersChanged(shopId);
 
                 return Json(response);
             }
@@ -497,10 +495,6 @@ ORDER BY o.CreatedAt ASC, i.CreateDate ASC;";
 
                 int rows = _db.DoSQL("Update", "Orders", id: request.OrderId.ToString(), data: data);
 
-                if (rows > 0)
-                {
-                    OrderNotificationService.NotifyOrdersChanged(shopId);
-                }
 
                 return Json(new { ok = rows > 0, rows });
             }
