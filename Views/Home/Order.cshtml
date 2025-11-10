@@ -612,6 +612,11 @@
             return items;
         }
 
+        function normalizeGuid(value) {
+            if (!value) return null;
+            return String(value).trim() || null;
+        }
+
         function submitOrder() {
             setOrderResult('', null);
             var orderType = document.querySelector('input[name="orderType"]:checked').value;
@@ -625,14 +630,19 @@
             var tableId = null;
             var shopId = null;
             if (orderType === 'DineIn') {
-                tableId = tableSelect.value;
-                if (!tableId) {
-                    setOrderResult('請選擇桌號。', 'error');
-                    tableSelect.focus();
-                    return;
+                if (hasPresetTable && presetTableId) {
+                    tableId = normalizeGuid(presetTableId);
+                    shopId = normalizeGuid(presetTable.ShopId || presetTable.shopId);
+                } else {
+                    tableId = normalizeGuid(tableSelect.value);
+                    if (!tableId) {
+                        setOrderResult('請選擇桌號。', 'error');
+                        tableSelect.focus();
+                        return;
+                    }
+                    var selectedOption = tableSelect.selectedOptions[0];
+                    shopId = normalizeGuid(selectedOption ? selectedOption.dataset.shopId : null);
                 }
-                var selectedOption = tableSelect.selectedOptions[0];
-                shopId = selectedOption ? selectedOption.dataset.shopId || null : null;
             }
 
             submitButton.disabled = true;
