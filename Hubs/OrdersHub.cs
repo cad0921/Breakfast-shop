@@ -1,5 +1,5 @@
 using System;
-using Microsoft.AspNet.SignalR;
+using Microsoft.AspNetCore.SignalR;
 
 namespace breakfastshop.Hubs
 {
