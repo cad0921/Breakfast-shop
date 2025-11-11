@@ -6,6 +6,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Web.Mvc;
+using breakfastshop.Hubs;
 using breakfastshop.Models;
 
 namespace breakfastshop.Controllers
@@ -367,6 +368,8 @@ VALUES (@Id, @OrderId, @MealId, @MealName, @Quantity, @UnitPrice, @Notes, @Creat
                     });
                 }
 
+                OrdersHub.NotifyOrderCreated(orderId, shopId);
+
                 return Json(new
                 {
                     ok = true,
@@ -473,6 +476,18 @@ ORDER BY o.CreatedAt ASC, i.CreateDate ASC;";
                     throw new ArgumentException("缺少訂單 Id");
 
                 string normalized = NormalizeOrderStatus(request.Status);
+                Guid? shopId = null;
+
+                var infoTable = _db.Query("SELECT TOP 1 ShopId FROM dbo.Orders WHERE Id=@Id", new Dictionary<string, object>
+                {
+                    ["Id"] = request.OrderId
+                });
+
+                if (infoTable.Rows.Count > 0 && infoTable.Rows[0]["ShopId"] != DBNull.Value)
+                {
+                    shopId = (Guid)infoTable.Rows[0]["ShopId"];
+                }
+
                 var data = new Dictionary<string, object>
                 {
                     ["Status"] = normalized,
@@ -480,6 +495,12 @@ ORDER BY o.CreatedAt ASC, i.CreateDate ASC;";
                 };
 
                 int rows = _db.DoSQL("Update", "Orders", id: request.OrderId.ToString(), data: data);
+
+                if (rows > 0)
+                {
+                    OrdersHub.NotifyOrderStatusChanged(request.OrderId, shopId, normalized);
+                }
+
                 return Json(new { ok = rows > 0, rows });
             }
             catch (Exception ex)
